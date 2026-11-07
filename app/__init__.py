@@ -1,7 +1,7 @@
 from flask import Flask, jsonify
 
 from app.config import Config
-from app.extensions import db, migrate
+from app.extensions import db, migrate, limiter
 
 
 def create_app(config_class=Config):
@@ -15,6 +15,7 @@ def create_app(config_class=Config):
 
     db.init_app(app)
     migrate.init_app(app, db)
+    limiter.init_app(app)
 
     from app import models  # noqa: F401
     from app.routes import bp as main_bp
