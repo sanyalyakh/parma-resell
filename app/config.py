@@ -8,4 +8,5 @@ class Config:
         "DATABASE_URL",
         "postgresql+psycopg://parma:parma_dev_password@localhost:5432/parma_resell",
     )
+    RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "memory://")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
