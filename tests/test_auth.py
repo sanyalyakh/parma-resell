@@ -50,3 +50,20 @@ def test_auth_rejects_invalid_credentials(client):
     assert client.get("/api/auth/me").status_code == 401
     assert client.get("/api/auth/me", headers={"Authorization": "Bearer invalid"}).status_code == 401
     assert client.post("/api/auth/login", json={"email": "missing@example.com", "password": "wrong"}).status_code == 401
+
+
+def test_role_guard_blocks_unprivileged_user(client):
+    from app.auth import require_roles
+
+    @client.application.get("/api/test/admin-only")
+    @require_roles("club_admin", "platform_admin")
+    def admin_only():
+        return {"ok": True}
+
+    data = {"email": "user@example.com", "password": "strong-test-password"}
+    assert client.post("/api/auth/register", json=data).status_code == 201
+    token = client.post("/api/auth/login", json=data).json["access_token"]
+    assert client.get("/api/test/admin-only").status_code == 401
+    response = client.get("/api/test/admin-only", headers={"Authorization": "Bearer " + token})
+    assert response.status_code == 403
+    assert response.json["error"] == "forbidden"
