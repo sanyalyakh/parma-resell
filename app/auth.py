@@ -6,7 +6,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import User
 
 bp = Blueprint("auth", __name__, url_prefix="/api/auth")
@@ -54,6 +54,7 @@ def public_user(user):
 
 
 @bp.post("/register")
+@limiter.limit("5 per minute")
 def register():
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
@@ -76,6 +77,7 @@ def register():
 
 
 @bp.post("/login")
+@limiter.limit("10 per minute")
 def login():
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
