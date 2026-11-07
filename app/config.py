@@ -2,6 +2,7 @@ import os
 
 
 class Config:
+    APP_ENV = os.getenv("APP_ENV", "development")
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-only-change-me")
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL",
