@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.auth import require_auth
 from app.extensions import db
-from app.models import Listing, Match, SeasonTicket, Seat
+from app.models import Listing, Match, SeasonTicket, Seat, Venue
 
 bp = Blueprint("holder", __name__, url_prefix="/api")
 
@@ -53,7 +53,8 @@ def claim_ticket():
     if len(club_id) > 36 or len(seat_id) > 36 or len(season) > 20:
         return error("invalid_ticket_claim", 400)
     seat = db.session.get(Seat, seat_id)
-    if seat is None or seat.venue.club_id != club_id:
+    venue = db.session.get(Venue, seat.venue_id) if seat else None
+    if venue is None or venue.club_id != club_id:
         return error("seat_not_found_for_club", 404)
     ticket = SeasonTicket(
         holder_id=g.current_user.id, club_id=club_id, seat_id=seat_id,
@@ -100,7 +101,7 @@ def create_listing():
     if ticket.verification_status != "verified":
         return error("ticket_not_verified", 409)
     match = db.session.get(Match, match_id)
-    if match is None or match.club_id != ticket.club_id or match.venue_id != ticket.seat.venue_id:
+    if match is None or match.club_id != ticket.club_id or match.venue_id != db.session.get(Seat, ticket.seat_id).venue_id:
         return error("match_not_found_for_ticket", 404)
     starts_at = match.starts_at
     if starts_at.tzinfo is None:
@@ -123,7 +124,8 @@ def create_listing():
 @require_auth
 def withdraw_listing(listing_id):
     listing = db.session.get(Listing, listing_id)
-    if listing is None or listing.season_ticket.holder_id != g.current_user.id:
+    ticket = db.session.get(SeasonTicket, listing.season_ticket_id) if listing else None
+    if ticket is None or ticket.holder_id != g.current_user.id:
         return error("listing_not_found", 404)
     if listing.status not in ("draft", "published"):
         return error("listing_cannot_be_withdrawn", 409)
