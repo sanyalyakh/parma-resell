@@ -13,6 +13,9 @@ def create_app(config_class=Config):
         if not isinstance(secret, str) or len(secret) < 32 or secret == "dev-only-change-me":
             raise RuntimeError("Production requires a strong SECRET_KEY (at least 32 characters)")
 
+    if app.config.get("APP_ENV") == "production" and not app.config.get("RATELIMIT_STORAGE_URI", "").startswith(("redis://", "rediss://")):
+        raise RuntimeError("Production requires Redis-backed RATELIMIT_STORAGE_URI")
+
     db.init_app(app)
     migrate.init_app(app, db)
     limiter.init_app(app)
