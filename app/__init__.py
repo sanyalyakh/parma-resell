@@ -1,4 +1,6 @@
 from flask import Flask, jsonify
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import Config
 from app.extensions import db, migrate, limiter
@@ -46,6 +48,15 @@ def create_app(config_class=Config):
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         response.headers.setdefault("Cache-Control", "no-store")
         return response
+
+    @app.get("/api/ready")
+    def ready():
+        try:
+            db.session.execute(text("SELECT 1"))
+        except SQLAlchemyError:
+            db.session.rollback()
+            return jsonify(status="unavailable", dependency="database"), 503
+        return jsonify(status="ready", dependency="database"), 200
 
     @app.get("/api/health")
     def health():
