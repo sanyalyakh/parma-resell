@@ -35,6 +35,20 @@ def require_auth(view):
     return wrapped
 
 
+
+def require_roles(*allowed_roles):
+    """Enforce server-side RBAC after validating the signed access token."""
+    def decorate(view):
+        @wraps(view)
+        @require_auth
+        def wrapped(*args, **kwargs):
+            if g.current_user.role not in allowed_roles:
+                return jsonify(error="forbidden"), 403
+            return view(*args, **kwargs)
+        return wrapped
+    return decorate
+
+
 def public_user(user):
     return {"id": user.id, "email": user.email, "role": user.role, "club_id": user.club_id}
 
