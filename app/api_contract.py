@@ -15,6 +15,7 @@ API_CONTRACT = {
     },
     "public": [
         "GET /api/health",
+        "GET /api/ready",
         "GET /api/meta",
         "GET /api/clubs",
         "GET /api/matches?club_id=<id>&limit=20&offset=0",
