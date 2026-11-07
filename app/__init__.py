@@ -8,6 +8,11 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    if not app.config.get("TESTING") and app.config.get("APP_ENV") == "production":
+        secret = app.config.get("SECRET_KEY")
+        if not isinstance(secret, str) or len(secret) < 32 or secret == "dev-only-change-me":
+            raise RuntimeError("Production requires a strong SECRET_KEY (at least 32 characters)")
+
     db.init_app(app)
     migrate.init_app(app, db)
 
@@ -29,6 +34,14 @@ def create_app(config_class=Config):
     app.register_blueprint(admin_bp)
     app.register_blueprint(ticket_admin_bp)
     app.register_blueprint(api_meta_bp)
+
+    @app.after_request
+    def security_headers(response):
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault("Cache-Control", "no-store")
+        return response
 
     @app.get("/api/health")
     def health():
