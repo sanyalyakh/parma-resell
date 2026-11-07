@@ -1,60 +1,49 @@
 # PARMA RESELL
 
-Платформа официальной передачи права посещения отдельных домашних матчей владельцами сезонных абонементов.
+Backend для сервиса передачи права посещения отдельных домашних матчей владельцами сезонных абонементов баскетбольных клубов. Первый клуб — «ПАРМА».
 
-## Стек
+> Проект находится в разработке. Реальная продажа билетов, оплата и передача прав прохода отключены до подключения официального билетного оператора и платёжной инфраструктуры.
 
-- Python 3.12
-- Flask
-- PostgreSQL 16
-- Flask-SQLAlchemy и Flask-Migrate
-- Docker Compose
+## Технологии
 
-## Запуск через Docker
+Python 3.12 · Flask · SQLAlchemy · Alembic / Flask-Migrate · PostgreSQL 16 · Redis (production rate limiting) · Gunicorn · pytest.
 
-1. Создайте локальный файл окружения:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Запустите приложение и базу:
-
-   ```bash
-   docker compose up --build
-   ```
-
-3. Проверьте адреса:
-
-   - http://localhost:5000/
-   - http://localhost:5000/api/health
-
-Остановка: `docker compose down`. Данные PostgreSQL сохраняются в Docker volume. Для полного удаления локальной БД используйте `docker compose down -v` (это удалит данные).
-
-## Локальный запуск без Docker
-
-Нужен Python 3.12 и установленный PostgreSQL.
+## Локальный запуск
 
 ```bash
-python -m venv .venv
-# Windows PowerShell:
-.venv\Scripts\Activate.ps1
-# macOS / Linux:
-source .venv/bin/activate
+cp .env.example .env
+docker compose up --build
+```
 
+Перед первым использованием API примените миграции:
+
+```bash
+docker compose exec web flask --app wsgi:app db upgrade
+```
+
+Если сервис в Compose называется иначе, замените `web` на имя соответствующего сервиса.
+
+Проверка: `GET http://localhost:5000/api/health` — доступность приложения; `GET http://localhost:5000/api/ready` — подключение к БД; `GET http://localhost:5000/api/meta` — статус функций.
+
+## Тесты
+
+```bash
 pip install -r requirements.txt
+python -m pytest -q
 ```
 
-Скопируйте `.env.example` в `.env`, укажите параметры локальной БД и выполните:
+Интеграционный тест PostgreSQL запускается при наличии переменной `TEST_POSTGRES_URL`; в GitHub Actions используется PostgreSQL 16.
 
-```bash
-flask --app wsgi:app run --debug
-```
+## Структура
 
-## Принцип интеграции с билетным оператором
+- `app/` — модели, авторизация и HTTP API.
+- `migrations/` — версионированная схема базы данных.
+- `tests/` — модульные и интеграционные тесты.
+- `docs/` — архитектура, резервирование и эксплуатация.
+- `scripts/bootstrap_db.py` — исключительно локальная и явно разрешённая инициализация тестовой схемы.
 
-До подтверждения API СЦЕНА24 все операции с билетами остаются тестовыми. База PARMA RESELL не является источником истины о праве прохода. Нельзя проводить реальные сделки, пока оператор не подтвердит безопасную блокировку, отзыв и передачу права на конкретный матч.
+## Статус API
 
-## Текущий статус
+Реализованы базовая авторизация, публичный каталог, заявления о владении абонементом, черновики объявлений и часть административных операций. Бронирование, платежи, перепроверка билетов у оператора и передача прав прохода пока недоступны.
 
-Начальный каркас Flask backend. Следующий этап — проверка запуска, миграции и первые доменные модели.
+Документация по запуску: [docs/deployment-checklist.md](docs/deployment-checklist.md). Описание проектирования резервирования: [docs/reservation-design.md](docs/reservation-design.md).
