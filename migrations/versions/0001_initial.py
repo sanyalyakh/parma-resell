@@ -31,7 +31,7 @@ def upgrade():
         *timestamps(),
     )
     op.create_table(
-        "users", pk(), sa.Column("email", sa.String(254), nullable=False, unique=True),
+        "users", pk(), sa.Column("email", sa.String(254), nullable=False),
         sa.Column("password_hash", sa.String(255), nullable=False),
         sa.Column("role", sa.String(30), nullable=False),
         sa.Column("club_id", sa.String(36), sa.ForeignKey("clubs.id")),
