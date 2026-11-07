@@ -26,5 +26,5 @@ def test_frontend_contract_paths_exist():
     for category in ("public", "holder", "club_admin", "disabled"):
         for endpoint in API_CONTRACT[category]:
             method, path = endpoint.split(" ", 1)
-            path = path.split("?", 1)[0]
+            path = path.split("?", 1)[0].replace("<id>", "<listing_id>" if "/listings/" in path else "<ticket_id>")
             assert (path, method) in rules, endpoint
