@@ -19,6 +19,7 @@ def create_app(config_class=Config):
     from app.reservations import bp as reservations_bp
     from app.admin import bp as admin_bp
     from app.ticket_admin import bp as ticket_admin_bp
+    from app.api_meta import bp as api_meta_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
@@ -27,6 +28,7 @@ def create_app(config_class=Config):
     app.register_blueprint(reservations_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(ticket_admin_bp)
+    app.register_blueprint(api_meta_bp)
 
     @app.get("/api/health")
     def health():
