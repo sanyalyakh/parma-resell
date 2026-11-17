@@ -35,6 +35,11 @@ def create_app(config_class=Config):
     def expired_token(_header, _payload):
         return jsonify({"error": {"code": "TOKEN_EXPIRED", "message": "Токен истёк", "details": {}}}), 401
 
+    @app.errorhandler(IntegrityError)
+    def handle_integrity_error(_error):
+        db.session.rollback()
+        return jsonify({"error": {"code": "RESOURCE_CONFLICT", "message": "Конфликт данных или дублирующая запись", "details": {}}}), 409
+
     @app.errorhandler(404)
     def not_found(_error):
         return jsonify({"error": {"code": "NOT_FOUND", "message": "Ресурс не найден", "details": {}}}), 404
