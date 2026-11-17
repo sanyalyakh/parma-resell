@@ -3,6 +3,9 @@ type MatchCardProps = {
   date: string;
   opponent: string;
   hasOffers: boolean;
+  arenaName: string;
+  matchType: "home" | "away";
+  venue: string;
 };
 
 export default function MatchCard({
@@ -10,6 +13,8 @@ export default function MatchCard({
   opponent,
   hasOffers,
   date,
+  matchType,
+  venue,
 }: MatchCardProps) {
   return (
     <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
@@ -49,7 +54,7 @@ export default function MatchCard({
       <div className="my-6 border-t border-gray-100"></div>
 
       <p className="mb-5 text-sm text-gray-500">
-        Домашний матч · УДС «Молот»
+        {matchType === "home" ? "Домашний матч" : "Выездной матч"} · {venue}
       </p>
 
       <a

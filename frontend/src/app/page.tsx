@@ -1,58 +1,16 @@
 import MatchCard from "./components/MatchCard";
-const matches = [
-  {
-    id: 1,
-    opponent: "Соперник 01",
-    hasOffers: true,
-    date: "15 декабря, 19:00",
-  },
-  {
-    id: 2,
-    opponent: "Соперник 02",
-    hasOffers: true,
-    date: "05 января, 19:00",
-  },
-  {
-    id: 3,
-    opponent: "Соперник 03",
-    hasOffers: false,
-    date: "15 января, 19:00",
-  },
-  {
-  id: 4,
-  opponent: "Соперник 04",
-  hasOffers: false,
-  date: "25 января, 19:00",
-  },
-];
+
+import { matches } from "./data/matches";
+
+import Link from "next/link";
+
+import Header from "@/app/components/Header";
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-white text-black">
       {/* Шапка сайта */}
-      <header className="flex items-center justify-between px-6 py-5 md:px-16">
-        <a href="/" className="text-2xl font-black tracking-tight">
-          PARMA<span className="text-orange-500">.</span>
-          <span className="ml-2 text-sm font-medium text-gray-500">
-            RESELL
-          </span>
-        </a>
-
-        <nav className="hidden items-center gap-8 text-sm font-semibold md:flex">
-          <a href="#matches" className="transition hover:text-orange-500">
-            Матчи
-          </a>
-          <a href="#how-it-works" className="transition hover:text-orange-500">
-            Как это работает
-          </a>
-          <a href="#about" className="transition hover:text-orange-500">
-            О сервисе
-          </a>
-        </nav>
-
-        <button className="rounded-lg bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-500">
-          Войти
-        </button>
-      </header>
+      <Header />
 
       {/* Главный экран */}
       <section className="relative overflow-hidden bg-[#0057A8] px-6 py-24 text-white md:px-16 md:py-36">
@@ -117,7 +75,9 @@ export default function Home() {
               id={match.id}
               opponent={match.opponent}
               hasOffers={match.hasOffers}
-              date={match.date}
+              date={`${match.date}, ${match.time}`}
+              matchType={match.matchType}
+              venue={match.venue}
             />
           ))}
 
