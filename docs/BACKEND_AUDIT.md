@@ -25,7 +25,7 @@ Baseline: `main` contained a Flask app factory, SQLAlchemy/Migrate extensions, a
 3. No scheduled worker for reservation expiration. Expired holds are released lazily during selected API requests; production needs a scheduler/queue.
 4. No full admin UI, user email verification, password reset, rate limiting at reverse proxy, audit-log viewer or operational monitoring.
 5. No club/arena/match import integration. The initial catalogue must be populated by an administrator or future trusted import.
-6. Price limits, commission allocation and payout rules are not final business decisions and are not applied.
+6. A temporary configurable maximum listing price exists; the final price ceiling, commission allocation and payout rules require business approval and are not yet applied.
 7. The OpenAPI document is a first contract draft and should be kept in sync with route changes.
 
 ## Before production
