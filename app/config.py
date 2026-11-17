@@ -20,3 +20,9 @@ class Config:
     PAYMENT_TEST_MODE = os.getenv("PAYMENT_TEST_MODE", "true").lower() == "true"
     LISTING_RESERVATION_MINUTES = int(os.getenv("LISTING_RESERVATION_MINUTES", "10"))
     MAX_LISTING_PRICE = int(os.getenv("MAX_LISTING_PRICE", "1000000"))
+
+    PHONE_CODE_TEST_MODE = os.getenv("PHONE_CODE_TEST_MODE", "false").lower() == "true"
+    PHONE_CODE_PEPPER = os.getenv("PHONE_CODE_PEPPER", SECRET_KEY)
+    PHONE_CODE_TTL_MINUTES = 5
+    PHONE_CODE_MAX_ATTEMPTS = 5
+    TICKET_PROVIDER = os.getenv("TICKET_PROVIDER", "unavailable")

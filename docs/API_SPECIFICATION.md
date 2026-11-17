@@ -169,3 +169,7 @@ Configure `CORS_ORIGINS` as a comma-separated allowlist of exact frontend origin
 - OpenAPI YAML: `/openapi.yaml`
 
 The OpenAPI file is the frontend contract. If a route or response changes, update `docs/openapi.yaml` and this document in the same change.
+
+## Phone and multiple season tickets
+
+See [SEASON_TICKETS.md](SEASON_TICKETS.md). New routes: POST /auth/phone/send-code, POST /auth/phone/verify, GET /seller/season-tickets, POST /seller/season-tickets/sync, GET /seller/season-tickets/{id}, GET /seller/season-tickets/{id}/matches, POST /admin/ticket-source-records. OTP and provider adapters are test-only; production SMS and club integration are not available.

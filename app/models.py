@@ -31,6 +31,8 @@ class User(TimestampMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     roles = db.relationship("Role", secondary=user_roles, lazy="joined")
+    phone_e164 = db.Column(db.String(20), unique=True, index=True)
+    phone_verified_at = db.Column(db.DateTime(timezone=True))
     listings = db.relationship("Listing", back_populates="seller", foreign_keys="Listing.seller_id")
     orders = db.relationship("Order", back_populates="buyer", foreign_keys="Order.buyer_id")
 
@@ -92,6 +94,10 @@ class SeasonTicket(TimestampMixin, db.Model):
     owner_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     seat_id = db.Column(db.Integer, db.ForeignKey("seats.id"), nullable=False)
     external_id = db.Column(db.String(150), unique=True)
+    ticket_number = db.Column(db.String(150))
+    season = db.Column(db.String(30))
+    source = db.Column(db.String(40), nullable=False, default="manual")
+    last_synced_at = db.Column(db.DateTime(timezone=True))
     status = db.Column(db.String(20), nullable=False, default="pending")
     verified_at = db.Column(db.DateTime(timezone=True))
     owner = db.relationship("User")
@@ -157,4 +163,36 @@ class EventLog(db.Model):
     entity_id = db.Column(db.Integer, nullable=False)
     action = db.Column(db.String(100), nullable=False)
     payload = db.Column(db.JSON, nullable=False, default=dict)
+    created_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), nullable=False)
+
+
+class PhoneVerification(db.Model):
+    __tablename__ = "phone_verifications"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    phone_e164 = db.Column(db.String(20), nullable=False)
+    code_hash = db.Column(db.String(255), nullable=False)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    attempts = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), nullable=False)
+
+
+class TicketSourceRecord(db.Model):
+    """Admin-imported, untrusted until an authorized source has been established."""
+    __tablename__ = "ticket_source_records"
+    id = db.Column(db.Integer, primary_key=True)
+    phone_e164 = db.Column(db.String(20), nullable=False, index=True)
+    external_id = db.Column(db.String(150), nullable=False, unique=True)
+    ticket_number = db.Column(db.String(150), nullable=False)
+    seat_id = db.Column(db.Integer, db.ForeignKey("seats.id"), nullable=False)
+    season = db.Column(db.String(30))
+    status = db.Column(db.String(20), nullable=False, default="active")
+
+
+class TicketSyncLog(db.Model):
+    __tablename__ = "ticket_sync_logs"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    status = db.Column(db.String(30), nullable=False)
+    count = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), nullable=False)

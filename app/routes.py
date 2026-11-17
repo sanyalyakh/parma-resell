@@ -1,4 +1,8 @@
 from datetime import datetime, timedelta, timezone
+import re
+import secrets
+import hashlib
+import hmac
 from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, current_app, jsonify, request
@@ -11,8 +15,10 @@ from flask_jwt_extended import (
 from app.extensions import db
 from app.models import (
     EventLog, Listing, Match, Order, Payment, Role, Seat,
-    Arena, Club, SeasonTicket, TokenBlocklist, User,
+    Arena, Club, SeasonTicket, TokenBlocklist, User, PhoneVerification, TicketSourceRecord, TicketSyncLog,
 )
+
+from app.ticket_sync import sync_user_tickets
 
 bp = Blueprint("api", __name__)
 
@@ -29,7 +35,8 @@ def user_json(user):
     return {
         "id": user.id, "email": user.email, "first_name": user.first_name,
         "last_name": user.last_name, "roles": sorted(role.name for role in user.roles),
-        "is_active": user.is_active,
+        "is_active": user.is_active, "phone": user.phone_e164,
+        "phone_verified": bool(user.phone_verified_at),
     }
 
 
@@ -158,6 +165,8 @@ def login():
     refresh_token = create_refresh_token(identity=str(user.id))
     response = jsonify({"user": user_json(user), "access_token": access, "token_type": "Bearer"})
     set_refresh_cookies(response, refresh_token)
+    if user.phone_verified_at:
+        sync_user_tickets(user, current_app.config["TICKET_PROVIDER"])
     return response
 
 
@@ -660,3 +669,145 @@ def admin_create_season_ticket():
     db.session.commit()
     return jsonify({"id": ticket.id, "owner_id": owner_id, "seat_id": seat_id,
                     "status": ticket.status}), 201
+
+
+def phone_normalize(raw):
+    value = str(raw or "").strip()
+    return value if re.fullmatch(r"\\+[1-9][0-9]{7,14}", value) else None
+
+
+def phone_code_hash(user_id, phone, code):
+    message = f"{user_id}:{phone}:{code}".encode()
+    return hmac.new(str(current_app.config["PHONE_CODE_PEPPER"]).encode(), message, hashlib.sha256).hexdigest()
+
+
+@bp.post("/auth/phone/send-code")
+@jwt_required()
+def send_phone_code():
+    user = current_user()
+    phone = phone_normalize((request.get_json(silent=True) or {}).get("phone"))
+    if not phone:
+        return error("INVALID_PHONE", "Укажите номер в формате E.164", 422)
+    if not current_app.config["PHONE_CODE_TEST_MODE"]:
+        return error("SMS_PROVIDER_NOT_CONFIGURED", "SMS-провайдер пока не подключён", 503)
+    now = datetime.now(timezone.utc)
+    recent = PhoneVerification.query.filter_by(user_id=user.id).order_by(PhoneVerification.id.desc()).first()
+    if recent and as_utc(recent.created_at) and (now - as_utc(recent.created_at)).total_seconds() < 60:
+        return error("RATE_LIMITED", "Повторите запрос позже", 429)
+    code = f"{secrets.randbelow(1000000):06d}"
+    challenge = PhoneVerification(user_id=user.id, phone_e164=phone,
+        code_hash=phone_code_hash(user.id, phone, code),
+        expires_at=now + timedelta(minutes=current_app.config["PHONE_CODE_TTL_MINUTES"]))
+    db.session.add(challenge)
+    db.session.commit()
+    # The code is returned only in explicitly enabled local test mode.
+    return jsonify({"status": "sent", "test_code": code}), 202
+
+
+@bp.post("/auth/phone/verify")
+@jwt_required()
+def verify_phone_code():
+    user = current_user()
+    data = request.get_json(silent=True) or {}
+    phone = phone_normalize(data.get("phone"))
+    code = str(data.get("code", ""))
+    if not phone or not re.fullmatch(r"[0-9]{6}", code):
+        return error("VALIDATION_ERROR", "Некорректный телефон или код", 422)
+    challenge = PhoneVerification.query.filter_by(user_id=user.id, phone_e164=phone).order_by(PhoneVerification.id.desc()).first()
+    if not challenge or as_utc(challenge.expires_at) <= datetime.now(timezone.utc):
+        return error("CODE_EXPIRED", "Код недействителен или истёк", 422)
+    if challenge.attempts >= current_app.config["PHONE_CODE_MAX_ATTEMPTS"]:
+        return error("TOO_MANY_ATTEMPTS", "Превышено число попыток", 429)
+    challenge.attempts += 1
+    if not hmac.compare_digest(challenge.code_hash, phone_code_hash(user.id, phone, code)):
+        db.session.commit()
+        return error("INVALID_CODE", "Неверный код", 422)
+    conflict = User.query.filter(User.phone_e164 == phone, User.id != user.id).first()
+    if conflict:
+        return error("PHONE_ALREADY_LINKED", "Номер уже привязан к другому аккаунту", 409)
+    old_phone = user.phone_e164
+    user.phone_e164 = phone
+    user.phone_verified_at = datetime.now(timezone.utc)
+    db.session.delete(challenge)
+    if old_phone and old_phone != phone:
+        for ticket in SeasonTicket.query.filter_by(owner_id=user.id, source="import").all():
+            ticket.status = "pending"
+    db.session.commit()
+    sync = sync_user_tickets(user, current_app.config["TICKET_PROVIDER"])
+    return jsonify({"user": user_json(user), "sync": sync})
+
+
+def ticket_json(ticket):
+    return {"id": ticket.id, "number": ticket.ticket_number or ticket.external_id,
+            "external_id": ticket.external_id, "season": ticket.season,
+            "sector": ticket.seat.sector, "row": ticket.seat.row,
+            "seat": ticket.seat.number, "seat_id": ticket.seat_id,
+            "status": ticket.status, "source": ticket.source,
+            "ownership_verified": ticket.status == "verified",
+            "last_synced_at": ticket.last_synced_at.isoformat() if ticket.last_synced_at else None}
+
+
+@bp.get("/seller/season-tickets")
+@jwt_required()
+def my_season_tickets():
+    user = current_user()
+    items = SeasonTicket.query.filter_by(owner_id=user.id).order_by(SeasonTicket.id).all()
+    latest = TicketSyncLog.query.filter_by(user_id=user.id).order_by(TicketSyncLog.id.desc()).first()
+    return jsonify({"phone_verified": bool(user.phone_verified_at),
+                    "sync_status": latest.status if latest else "not_started",
+                    "items": [ticket_json(item) for item in items]})
+
+
+@bp.post("/seller/season-tickets/sync")
+@jwt_required()
+def sync_season_tickets():
+    user = current_user()
+    if not user.phone_verified_at:
+        return error("PHONE_NOT_VERIFIED", "Подтвердите номер телефона", 403)
+    result = sync_user_tickets(user, current_app.config["TICKET_PROVIDER"])
+    return jsonify(result), 200 if result["status"] == "completed" else 503
+
+
+@bp.get("/seller/season-tickets/<int:ticket_id>")
+@jwt_required()
+def my_season_ticket(ticket_id):
+    ticket = SeasonTicket.query.filter_by(id=ticket_id, owner_id=current_user().id).first()
+    if not ticket:
+        return error("TICKET_NOT_FOUND", "Абонемент не найден", 404)
+    return jsonify({"ticket": ticket_json(ticket)})
+
+
+@bp.get("/seller/season-tickets/<int:ticket_id>/matches")
+@jwt_required()
+def season_ticket_matches(ticket_id):
+    ticket = SeasonTicket.query.filter_by(id=ticket_id, owner_id=current_user().id).first()
+    if not ticket:
+        return error("TICKET_NOT_FOUND", "Абонемент не найден", 404)
+    items = Match.query.filter_by(arena_id=ticket.seat.arena_id, match_type="home", status="scheduled").all()
+    return jsonify({"items": [match_json(item) for item in items], "can_list": ticket.status == "verified"})
+
+
+@bp.post("/admin/ticket-source-records")
+@jwt_required()
+def import_ticket_source_record():
+    if not require_admin():
+        return error("FORBIDDEN", "Требуются права администратора", 403)
+    data = request.get_json(silent=True) or {}
+    phone = phone_normalize(data.get("phone"))
+    try:
+        seat_id = int(data["seat_id"])
+    except (KeyError, ValueError, TypeError):
+        return error("VALIDATION_ERROR", "Необходимо указать seat_id", 422)
+    external_id = str(data.get("external_id", "")).strip()
+    number = str(data.get("number", "")).strip()
+    if not phone or not external_id or not number or not db.session.get(Seat, seat_id):
+        return error("VALIDATION_ERROR", "Некорректные данные абонемента", 422)
+    record = TicketSourceRecord.query.filter_by(external_id=external_id).first()
+    if not record:
+        record = TicketSourceRecord(external_id=external_id)
+        db.session.add(record)
+    record.phone_e164, record.seat_id, record.ticket_number = phone, seat_id, number
+    record.season = str(data.get("season", ""))
+    record.status = "active" if data.get("status", "active") == "active" else "inactive"
+    db.session.commit()
+    return jsonify({"id": record.id, "status": "imported"}), 201
