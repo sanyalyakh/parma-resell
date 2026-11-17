@@ -22,6 +22,8 @@
 5. Health: http://localhost:5000/api/health
 6. Swagger UI: http://localhost:5000/docs
 7. OpenAPI: http://localhost:5000/openapi.yaml
+8. Контракт API: `docs/API_SPECIFICATION.md`.
+9. Аудит и production gaps: `docs/BACKEND_AUDIT.md`.
 8. Создайте администратора: `docker compose exec web flask --app wsgi:app create-admin`.
 
 ## Авторизация
