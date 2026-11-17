@@ -15,7 +15,7 @@ class Config:
     JWT_TOKEN_LOCATION = ["headers", "cookies"]
     JWT_COOKIE_SECURE = os.getenv("JWT_COOKIE_SECURE", "false").lower() == "true"
     JWT_COOKIE_CSRF_PROTECT = True
-    JWT_COOKIE_SAMESITE = "Lax"
+    JWT_COOKIE_SAMESITE = os.getenv("JWT_COOKIE_SAMESITE", "Lax")
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
     PAYMENT_TEST_MODE = os.getenv("PAYMENT_TEST_MODE", "true").lower() == "true"
     LISTING_RESERVATION_MINUTES = int(os.getenv("LISTING_RESERVATION_MINUTES", "10"))
