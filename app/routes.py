@@ -4,13 +4,13 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import (
     create_access_token, create_refresh_token, get_jwt, get_jwt_identity,
-    jwt_required, set_refresh_cookies, unset_jwt_cookies,
+    decode_token, jwt_required, set_refresh_cookies, unset_jwt_cookies,
 )
 
 from app.extensions import db
 from app.models import (
     EventLog, Listing, Match, Order, Payment, Role, Seat,
-    SeasonTicket, TokenBlocklist, User,
+    Arena, Club, SeasonTicket, TokenBlocklist, User,
 )
 
 bp = Blueprint("api", __name__)
@@ -47,6 +47,27 @@ def order_json(order):
         "amount": str(order.amount), "currency": order.currency, "status": order.status,
         "expires_at": order.expires_at.isoformat(), "paid_at": order.paid_at.isoformat() if order.paid_at else None,
     }
+
+
+def require_admin():
+    user = current_user()
+    if not user or not user.has_role("admin"):
+        return None
+    return user
+
+
+def expire_reservations():
+    now = datetime.now(timezone.utc)
+    stale = Listing.query.filter(
+        Listing.status == "reserved", Listing.reserved_until <= now
+    ).all()
+    for listing in stale:
+        for order in Order.query.filter_by(listing_id=listing.id, status="pending_payment").all():
+            order.status = "expired"
+        listing.status = "active"
+        listing.reserved_until = None
+    if stale:
+        db.session.commit()
 
 
 def log_event(actor_id, entity_type, entity_id, action, payload=None):
@@ -143,6 +164,13 @@ def refresh():
 @jwt_required()
 def logout():
     db.session.add(TokenBlocklist(jti=get_jwt()["jti"]))
+    refresh_raw = request.cookies.get("refresh_token_cookie")
+    if refresh_raw:
+        try:
+            refresh_payload = decode_token(refresh_raw)
+            db.session.add(TokenBlocklist(jti=refresh_payload["jti"]))
+        except Exception:
+            pass
     db.session.commit()
     response = jsonify({"message": "Выход выполнен"})
     unset_jwt_cookies(response)
@@ -185,6 +213,7 @@ def match_detail(match_id):
 
 @bp.get("/matches/<int:match_id>/listings")
 def match_listings(match_id):
+    expire_reservations()
     if not db.session.get(Match, match_id):
         return error("MATCH_NOT_FOUND", "Матч не найден", 404)
     query = Listing.query.filter_by(match_id=match_id, status="active")
@@ -210,6 +239,8 @@ def create_listing():
     if price is None:
         return error("INVALID_PRICE", "Укажите корректную положительную цену", 422)
     ticket = SeasonTicket.query.filter_by(id=ticket_id, owner_id=user.id, status="verified").first()
+    if not user.has_role("seller"):
+        return error("SELLER_ROLE_REQUIRED", "Для публикации необходимо подтвердить абонемент", 403)
     match = db.session.get(Match, match_id)
     seat = db.session.get(Seat, seat_id)
     if not ticket or ticket.seat_id != seat_id:
@@ -351,6 +382,7 @@ def buyer_tickets():
 @bp.post("/orders")
 @jwt_required()
 def create_order():
+    expire_reservations()
     user = current_user()
     data = request.get_json(silent=True) or {}
     try:
@@ -429,3 +461,122 @@ def test_payment(order_id):
     log_event(user.id, "order", order.id, "test_payment_succeeded")
     db.session.commit()
     return jsonify({"order": order_json(order), "payment": {"status": payment.status, "provider": "test"}})
+
+
+@bp.post("/admin/clubs")
+@jwt_required()
+def admin_create_club():
+    user = require_admin()
+    if not user:
+        return error("FORBIDDEN", "Требуются права администратора", 403)
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name", "")).strip()
+    if not name:
+        return error("VALIDATION_ERROR", "Необходимо указать name", 422)
+    item = Club(name=name, short_name=data.get("short_name"), external_id=data.get("external_id"))
+    db.session.add(item)
+    db.session.commit()
+    return jsonify({"id": item.id, "name": item.name}), 201
+
+
+@bp.post("/admin/arenas")
+@jwt_required()
+def admin_create_arena():
+    user = require_admin()
+    if not user:
+        return error("FORBIDDEN", "Требуются права администратора", 403)
+    data = request.get_json(silent=True) or {}
+    name, city = str(data.get("name", "")).strip(), str(data.get("city", "")).strip()
+    if not name or not city:
+        return error("VALIDATION_ERROR", "Необходимо указать name и city", 422)
+    capacity = data.get("capacity")
+    if capacity is not None and (not isinstance(capacity, int) or capacity <= 0):
+        return error("VALIDATION_ERROR", "capacity должен быть положительным целым числом", 422)
+    item = Arena(name=name, city=city, capacity=capacity)
+    db.session.add(item)
+    db.session.commit()
+    return jsonify({"id": item.id, "name": item.name, "city": item.city}), 201
+
+
+@bp.post("/admin/seats")
+@jwt_required()
+def admin_create_seat():
+    user = require_admin()
+    if not user:
+        return error("FORBIDDEN", "Требуются права администратора", 403)
+    data = request.get_json(silent=True) or {}
+    try:
+        arena_id = int(data["arena_id"])
+        sector, row, number = str(data["sector"]).strip(), str(data["row"]).strip(), str(data["number"]).strip()
+    except (KeyError, TypeError, ValueError):
+        return error("VALIDATION_ERROR", "Необходимо указать arena_id, sector, row и number", 422)
+    if not db.session.get(Arena, arena_id) or not all([sector, row, number]):
+        return error("VALIDATION_ERROR", "Некорректная арена или параметры места", 422)
+    item = Seat(arena_id=arena_id, sector=sector, row=row, number=number)
+    db.session.add(item)
+    db.session.commit()
+    return jsonify({"id": item.id, "arena_id": arena_id, "sector": sector, "row": row, "number": number}), 201
+
+
+@bp.post("/admin/matches")
+@jwt_required()
+def admin_create_match():
+    user = require_admin()
+    if not user:
+        return error("FORBIDDEN", "Требуются права администратора", 403)
+    data = request.get_json(silent=True) or {}
+    try:
+        home_id, away_id, arena_id = int(data["home_club_id"]), int(data["away_club_id"]), int(data["arena_id"])
+        starts_at = datetime.fromisoformat(str(data["starts_at"]).replace("Z", "+00:00"))
+        competition = str(data["competition"]).strip()
+    except (KeyError, TypeError, ValueError):
+        return error("VALIDATION_ERROR", "Некорректные данные матча", 422)
+    if starts_at.tzinfo is None:
+        starts_at = starts_at.replace(tzinfo=timezone.utc)
+    if not db.session.get(Club, home_id) or not db.session.get(Club, away_id) or not db.session.get(Arena, arena_id):
+        return error("VALIDATION_ERROR", "Не найдены клуб или арена", 422)
+    if home_id == away_id or not competition:
+        return error("VALIDATION_ERROR", "Домашняя и гостевая команды должны различаться", 422)
+    match_type = data.get("match_type", "home")
+    if match_type not in ("home", "away"):
+        return error("VALIDATION_ERROR", "match_type должен быть home или away", 422)
+    item = Match(home_club_id=home_id, away_club_id=away_id, arena_id=arena_id,
+                 starts_at=starts_at, competition=competition, match_type=match_type,
+                 status=data.get("status", "scheduled"))
+    db.session.add(item)
+    db.session.commit()
+    return jsonify(match_json(item)), 201
+
+
+@bp.post("/admin/season-tickets")
+@jwt_required()
+def admin_create_season_ticket():
+    user = require_admin()
+    if not user:
+        return error("FORBIDDEN", "Требуются права администратора", 403)
+    data = request.get_json(silent=True) or {}
+    try:
+        owner_id, seat_id = int(data["owner_id"]), int(data["seat_id"])
+    except (KeyError, TypeError, ValueError):
+        return error("VALIDATION_ERROR", "Необходимо указать owner_id и seat_id", 422)
+    owner, seat = db.session.get(User, owner_id), db.session.get(Seat, seat_id)
+    if not owner or not seat:
+        return error("VALIDATION_ERROR", "Пользователь или место не найдены", 422)
+    status = data.get("status", "pending")
+    if status not in ("pending", "verified", "rejected"):
+        return error("VALIDATION_ERROR", "Недопустимый статус абонемента", 422)
+    ticket = SeasonTicket(owner_id=owner_id, seat_id=seat_id,
+                          external_id=data.get("external_id"), status=status,
+                          verified_at=datetime.now(timezone.utc) if status == "verified" else None)
+    if status == "verified":
+        seller_role = Role.query.filter_by(name="seller").first()
+        if not seller_role:
+            seller_role = Role(name="seller")
+            db.session.add(seller_role)
+            db.session.flush()
+        if not owner.has_role("seller"):
+            owner.roles.append(seller_role)
+    db.session.add(ticket)
+    db.session.commit()
+    return jsonify({"id": ticket.id, "owner_id": owner_id, "seat_id": seat_id,
+                    "status": ticket.status}), 201
