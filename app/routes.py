@@ -414,6 +414,27 @@ def create_order():
     return jsonify({"order": order_json(order), "payment": {"status": payment.status, "provider": payment.provider}}), 201
 
 
+@bp.post("/orders/<int:order_id>/cancel")
+@jwt_required()
+def cancel_order(order_id):
+    user = current_user()
+    order = Order.query.filter_by(id=order_id, buyer_id=user.id).with_for_update().first()
+    if not order:
+        return error("ORDER_NOT_FOUND", "Заказ не найден", 404)
+    if order.status != "pending_payment":
+        return error("ORDER_NOT_CANCELLABLE", "Заказ нельзя отменить в текущем статусе", 409)
+    order.status = "cancelled"
+    payment = Payment.query.filter_by(order_id=order.id).first()
+    if payment and payment.status == "pending":
+        payment.status = "cancelled"
+    if order.listing.status == "reserved":
+        order.listing.status = "active"
+        order.listing.reserved_until = None
+    log_event(user.id, "order", order.id, "cancelled")
+    db.session.commit()
+    return jsonify({"order": order_json(order)})
+
+
 @bp.get("/orders/<int:order_id>")
 @jwt_required()
 def order_detail(order_id):
