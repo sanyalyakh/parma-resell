@@ -473,6 +473,41 @@ def test_payment(order_id):
     return jsonify({"order": order_json(order), "payment": {"status": payment.status, "provider": "test"}})
 
 
+
+@bp.get("/matches/<int:match_id>/seats")
+def match_seats(match_id):
+    expire_reservations()
+    match = db.session.get(Match, match_id)
+    if not match:
+        return error("MATCH_NOT_FOUND", "Матч не найден", 404)
+    seats = Seat.query.filter_by(arena_id=match.arena_id).order_by(
+        Seat.sector, Seat.row, Seat.number
+    ).all()
+    listings = Listing.query.filter(
+        Listing.match_id == match_id,
+        Listing.status.in_(["active", "reserved", "sold"]),
+    ).all()
+    status_by_seat = {item.seat_id: item.status for item in listings}
+    return jsonify({"match_id": match_id, "arena_id": match.arena_id, "items": [
+        {"id": seat.id, "sector": seat.sector, "row": seat.row,
+         "number": seat.number, "status": status_by_seat.get(seat.id, "available")}
+        for seat in seats
+    ]})
+
+
+@bp.get("/seller/season-tickets")
+@jwt_required()
+def seller_season_tickets():
+    user_id = current_user().id
+    tickets = SeasonTicket.query.filter_by(owner_id=user_id).order_by(SeasonTicket.created_at.desc()).all()
+    return jsonify({"items": [
+        {"id": ticket.id, "seat_id": ticket.seat_id, "external_id": ticket.external_id,
+         "status": ticket.status, "sector": ticket.seat.sector, "row": ticket.seat.row,
+         "number": ticket.seat.number}
+        for ticket in tickets
+    ]})
+
+
 @bp.post("/admin/clubs")
 @jwt_required()
 def admin_create_club():
