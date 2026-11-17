@@ -50,6 +50,14 @@ def order_json(order):
     }
 
 
+def as_utc(value):
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def require_admin():
     user = current_user()
     if not user or not user.has_role("admin"):
@@ -399,7 +407,7 @@ def create_order():
     if item.seller_id == user.id:
         return error("SELF_PURCHASE", "Нельзя купить собственное предложение", 409)
     match = db.session.get(Match, item.match_id)
-    if not match or match.starts_at <= now:
+    if not match or as_utc(match.starts_at) <= now:
         return error("MATCH_ALREADY_STARTED", "Матч уже начался или завершён", 409)
     item.status = "reserved"
     item.reserved_until = now + timedelta(minutes=current_app.config["LISTING_RESERVATION_MINUTES"])
@@ -470,7 +478,7 @@ def test_payment(order_id):
     if order.status != "pending_payment":
         return error("ORDER_NOT_PAYABLE", "Заказ не ожидает оплаты", 409)
     now = datetime.now(timezone.utc)
-    if order.expires_at <= now or order.listing.status != "reserved":
+    if as_utc(order.expires_at) <= now or order.listing.status != "reserved":
         order.status = "expired"
         order.listing.status = "active"
         order.listing.reserved_until = None
