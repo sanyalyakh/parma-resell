@@ -453,12 +453,22 @@ def test_payment(order_id):
         db.session.commit()
         return error("ORDER_EXPIRED", "Время бронирования истекло", 409)
     payment = Payment.query.filter_by(order_id=order.id).first()
-    payment.status = "succeeded"
-    order.status = "paid"
-    order.paid_at = now
-    order.listing.status = "sold"
-    order.listing.reserved_until = None
-    log_event(user.id, "order", order.id, "test_payment_succeeded")
+    outcome = (request.get_json(silent=True) or {}).get("outcome", "succeeded")
+    if outcome not in ("succeeded", "failed"):
+        return error("VALIDATION_ERROR", "outcome должен быть succeeded или failed", 422)
+    if outcome == "failed":
+        payment.status = "failed"
+        order.status = "payment_failed"
+        order.listing.status = "active"
+        order.listing.reserved_until = None
+        log_event(user.id, "order", order.id, "test_payment_failed")
+    else:
+        payment.status = "succeeded"
+        order.status = "paid"
+        order.paid_at = now
+        order.listing.status = "sold"
+        order.listing.reserved_until = None
+        log_event(user.id, "order", order.id, "test_payment_succeeded")
     db.session.commit()
     return jsonify({"order": order_json(order), "payment": {"status": payment.status, "provider": "test"}})
 
