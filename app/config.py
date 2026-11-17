@@ -19,3 +19,4 @@ class Config:
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
     PAYMENT_TEST_MODE = os.getenv("PAYMENT_TEST_MODE", "true").lower() == "true"
     LISTING_RESERVATION_MINUTES = int(os.getenv("LISTING_RESERVATION_MINUTES", "10"))
+    MAX_LISTING_PRICE = int(os.getenv("MAX_LISTING_PRICE", "1000000"))
