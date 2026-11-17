@@ -77,7 +77,7 @@ Create listing:
 }
 ```
 
-The backend verifies that the season ticket belongs to the current user, has status `verified`, and refers to the requested seat. The seat must belong to the match arena, and only scheduled home matches can be listed.
+The backend verifies that the season ticket belongs to the current user, has status `verified`, and refers to the requested seat. The seat must belong to the match arena, and only scheduled home matches can be listed. A configurable temporary ceiling is set by `MAX_LISTING_PRICE`; the final commercial price ceiling still requires club approval.
 
 Listing statuses:
 - `active` — visible to buyers;
