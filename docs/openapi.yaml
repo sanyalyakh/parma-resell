@@ -229,6 +229,15 @@ paths:
       responses:
         '201': {description: Заказ создан, предложение зарезервировано}
         '409': {description: Предложение недоступно}
+  /orders/{order_id}/cancel:
+    post:
+      tags: [Orders]
+      summary: Отмена неоплаченного заказа покупателем и снятие брони
+      parameters:
+        - {$ref: '#/components/parameters/OrderId'}
+      responses:
+        '200': {description: Заказ отменён}
+        '409': {description: Заказ нельзя отменить}
   /orders/{order_id}:
     get:
       tags: [Orders]
