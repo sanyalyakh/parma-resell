@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 
 class Config:
@@ -8,3 +9,20 @@ class Config:
         "postgresql+psycopg://parma:parma_dev_password@localhost:5432/parma_resell",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", SECRET_KEY)
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
+    JWT_TOKEN_LOCATION = ["headers", "cookies"]
+    JWT_COOKIE_SECURE = os.getenv("JWT_COOKIE_SECURE", "false").lower() == "true"
+    JWT_COOKIE_CSRF_PROTECT = True
+    JWT_COOKIE_SAMESITE = os.getenv("JWT_COOKIE_SAMESITE", "Lax")
+    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+    PAYMENT_TEST_MODE = os.getenv("PAYMENT_TEST_MODE", "true").lower() == "true"
+    LISTING_RESERVATION_MINUTES = int(os.getenv("LISTING_RESERVATION_MINUTES", "10"))
+    MAX_LISTING_PRICE = int(os.getenv("MAX_LISTING_PRICE", "1000000"))
+
+    PHONE_CODE_TEST_MODE = os.getenv("PHONE_CODE_TEST_MODE", "false").lower() == "true"
+    PHONE_CODE_PEPPER = os.getenv("PHONE_CODE_PEPPER", SECRET_KEY)
+    PHONE_CODE_TTL_MINUTES = 5
+    PHONE_CODE_MAX_ATTEMPTS = 5
+    TICKET_PROVIDER = os.getenv("TICKET_PROVIDER", "unavailable")
