@@ -89,7 +89,7 @@ def log_event(actor_id, entity_type, entity_id, action, payload=None):
 def parse_price(value):
     try:
         price = Decimal(str(value))
-        if not price.is_finite() or price <= 0 or price > Decimal("1000000"):
+        if not price.is_finite() or price <= 0 or price > Decimal(str(current_app.config["MAX_LISTING_PRICE"])):
             raise InvalidOperation
         return price
     except (InvalidOperation, TypeError, ValueError):
@@ -162,7 +162,7 @@ def login():
 
 
 @bp.post("/auth/refresh")
-@jwt_required(refresh=True)
+@jwt_required(refresh=True, locations=["cookies"])
 def refresh():
     user = current_user()
     if not user or not user.is_active:
