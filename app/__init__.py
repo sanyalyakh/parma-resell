@@ -1,3 +1,4 @@
+import click
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from app.config import Config
@@ -58,5 +59,33 @@ def create_app(config_class=Config):
         <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
         <script>SwaggerUIBundle({url:'/openapi.yaml',dom_id:'#swagger-ui'});</script>
         </body></html>"""
+
+    @app.cli.command("create-admin")
+    @click.option("--email", prompt=True)
+    @click.option("--first-name", prompt="First name")
+    @click.option("--last-name", prompt="Last name")
+    @click.password_option()
+    def create_admin(email, first_name, last_name, password):
+        """Create or promote an administrator account."""
+        from werkzeug.security import generate_password_hash
+        from app.models import Role, User
+
+        normalized_email = email.strip().lower()
+        if len(password) < 12:
+            raise click.ClickException("Admin password must contain at least 12 characters.")
+        user = User.query.filter_by(email=normalized_email).first()
+        if not user:
+            user = User(email=normalized_email, first_name=first_name,
+                        last_name=last_name, password_hash=generate_password_hash(password))
+            db.session.add(user)
+        role = Role.query.filter_by(name="admin").first()
+        if not role:
+            role = Role(name="admin")
+            db.session.add(role)
+            db.session.flush()
+        if not user.has_role("admin"):
+            user.roles.append(role)
+        db.session.commit()
+        click.echo(f"Administrator ready: {normalized_email}")
 
     return app
