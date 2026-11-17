@@ -19,6 +19,7 @@ class TestConfig:
     CORS_ORIGINS = ["http://localhost:3000"]
     PAYMENT_TEST_MODE = True
     LISTING_RESERVATION_MINUTES = 10
+    MAX_LISTING_PRICE = 1000000
 
 
 def make_client():
