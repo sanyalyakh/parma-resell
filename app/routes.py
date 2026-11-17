@@ -583,11 +583,14 @@ def admin_create_match():
     if home_id == away_id or not competition:
         return error("VALIDATION_ERROR", "Домашняя и гостевая команды должны различаться", 422)
     match_type = data.get("match_type", "home")
+    match_status = data.get("status", "scheduled")
     if match_type not in ("home", "away"):
         return error("VALIDATION_ERROR", "match_type должен быть home или away", 422)
+    if match_status not in ("scheduled", "live", "finished", "cancelled"):
+        return error("VALIDATION_ERROR", "Недопустимый статус матча", 422)
     item = Match(home_club_id=home_id, away_club_id=away_id, arena_id=arena_id,
                  starts_at=starts_at, competition=competition, match_type=match_type,
-                 status=data.get("status", "scheduled"))
+                 status=match_status)
     db.session.add(item)
     db.session.commit()
     return jsonify(match_json(item)), 201
