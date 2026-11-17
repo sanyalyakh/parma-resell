@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, current_app, jsonify, request
+from email_validator import EmailNotValidError, validate_email
 from flask_jwt_extended import (
     create_access_token, create_refresh_token, get_jwt, get_jwt_identity,
     decode_token, jwt_required, set_refresh_cookies, unset_jwt_cookies,
@@ -109,7 +110,9 @@ def register():
     password = data.get("password", "")
     first_name = str(data.get("first_name", "")).strip()
     last_name = str(data.get("last_name", "")).strip()
-    if not email or "@" not in email or len(email) > 255:
+    try:
+        email = validate_email(email, check_deliverability=False).normalized
+    except EmailNotValidError:
         return error("VALIDATION_ERROR", "Укажите корректный email", 422)
     if not isinstance(password, str) or len(password) < 10:
         return error("VALIDATION_ERROR", "Пароль должен содержать не менее 10 символов", 422)
