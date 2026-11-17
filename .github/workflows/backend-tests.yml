@@ -16,9 +16,10 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - run: pytest -q
+      - run: python -m pytest -q
         env:
           SECRET_KEY: ci-secret
           JWT_SECRET_KEY: ci-jwt-secret
           DATABASE_URL: sqlite://
           PAYMENT_TEST_MODE: "true"
+          PYTHONPATH: .
