@@ -1,0 +1,287 @@
+openapi: 3.1.0
+info:
+  title: PARMA RESELL API
+  version: 1.0.0
+  description: REST API сервиса перепродажи прав посещения домашних матчей по абонементам.
+servers:
+  - url: http://localhost:5000/api/v1
+tags:
+  - name: Auth
+  - name: Matches
+  - name: Listings
+  - name: Seller
+  - name: Buyer
+  - name: Orders
+security:
+  - bearerAuth: []
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Регистрация покупателя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, first_name, last_name]
+              properties:
+                email: {type: string, format: email}
+                password: {type: string, minLength: 10}
+                first_name: {type: string}
+                last_name: {type: string}
+      responses:
+        '201': {description: Пользователь создан; access token возвращён в JSON, refresh token установлен в HttpOnly cookie}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {description: Ошибка валидации}
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Авторизация
+      responses:
+        '200': {description: Access token и профиль пользователя; refresh token устанавливается cookie}
+        '401': {description: Неверные учётные данные}
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Выход и отзыв access token
+      responses:
+        '200': {description: Выход выполнен}
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      security: [{cookieAuth: []}]
+      summary: Обновление access token; требуется CSRF header
+      responses:
+        '200': {description: Новый access token}
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Текущий пользователь и его роли
+      responses:
+        '200': {description: Профиль пользователя}
+  /matches:
+    get:
+      tags: [Matches]
+      security: []
+      summary: Список матчей
+      parameters:
+        - {in: query, name: type, schema: {type: string, enum: [home, away]}}
+        - {in: query, name: status, schema: {type: string}}
+        - {in: query, name: season, schema: {type: string}}
+        - {in: query, name: page, schema: {type: integer, default: 1}}
+        - {in: query, name: per_page, schema: {type: integer, default: 20, maximum: 100}}
+      responses:
+        '200': {description: Страница матчей}
+  /matches/{match_id}:
+    get:
+      tags: [Matches]
+      security: []
+      summary: Информация о матче
+      parameters:
+        - {$ref: '#/components/parameters/MatchId'}
+      responses:
+        '200': {description: Матч}
+        '404': {description: Матч не найден}
+  /matches/{match_id}/listings:
+    get:
+      tags: [Listings]
+      security: []
+      summary: Активные предложения матча
+      parameters:
+        - {$ref: '#/components/parameters/MatchId'}
+      responses:
+        '200': {description: Список предложений}
+  /listings:
+    post:
+      tags: [Listings]
+      summary: Создание предложения по подтверждённому абонементу
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [match_id, seat_id, season_ticket_id, price]
+              properties:
+                match_id: {type: integer}
+                seat_id: {type: integer}
+                season_ticket_id: {type: integer}
+                price: {type: number, exclusiveMinimum: 0}
+      responses:
+        '201': {description: Предложение создано}
+        '403': {description: Абонемент не подтверждён}
+        '409': {description: Место уже выставлено}
+  /listings/my:
+    get:
+      tags: [Listings]
+      summary: Собственные предложения
+      responses:
+        '200': {description: Список предложений}
+  /listings/{listing_id}:
+    get:
+      tags: [Listings]
+      security: []
+      summary: Получение предложения
+      parameters:
+        - {$ref: '#/components/parameters/ListingId'}
+      responses:
+        '200': {description: Предложение}
+    patch:
+      tags: [Listings]
+      summary: Изменение цены собственного предложения
+      parameters:
+        - {$ref: '#/components/parameters/ListingId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                price: {type: number, exclusiveMinimum: 0}
+      responses:
+        '200': {description: Обновлённое предложение}
+        '409': {description: Предложение нельзя изменить}
+    delete:
+      tags: [Listings]
+      summary: Снятие собственного предложения
+      parameters:
+        - {$ref: '#/components/parameters/ListingId'}
+      responses:
+        '204': {description: Предложение снято}
+  /seller/dashboard:
+    get:
+      tags: [Seller]
+      summary: Сводка продавца
+      responses:
+        '200': {description: Статистика продавца}
+  /seller/statistics:
+    get:
+      tags: [Seller]
+      summary: Статистика продавца
+      responses:
+        '200': {description: Статистика продавца}
+  /seller/sales:
+    get:
+      tags: [Seller]
+      summary: История продаж и заказов
+      responses:
+        '200': {description: Заказы по предложениям продавца}
+  /buyer/dashboard:
+    get:
+      tags: [Buyer]
+      summary: Сводка покупателя
+      responses:
+        '200': {description: Статистика покупателя}
+  /buyer/orders:
+    get:
+      tags: [Buyer]
+      summary: История заказов
+      responses:
+        '200': {description: Заказы покупателя}
+  /buyer/orders/{order_id}:
+    get:
+      tags: [Buyer]
+      summary: Детали заказа
+      parameters:
+        - {$ref: '#/components/parameters/OrderId'}
+      responses:
+        '200': {description: Заказ и предложение}
+  /buyer/tickets:
+    get:
+      tags: [Buyer]
+      summary: Приобретённые билеты (пока цифровая запись покупки, не билет на проход)
+      responses:
+        '200': {description: Оплаченные заказы}
+  /orders:
+    post:
+      tags: [Orders]
+      summary: Создание заказа и временное бронирование предложения
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [listing_id]
+              properties:
+                listing_id: {type: integer}
+      responses:
+        '201': {description: Заказ создан, предложение зарезервировано}
+        '409': {description: Предложение недоступно}
+  /orders/{order_id}:
+    get:
+      tags: [Orders]
+      summary: Получение заказа покупателем или продавцом
+      parameters:
+        - {$ref: '#/components/parameters/OrderId'}
+      responses:
+        '200': {description: Заказ}
+        '403': {description: Нет доступа}
+  /orders/{order_id}/payment:
+    get:
+      tags: [Orders]
+      summary: Статус оплаты
+      parameters:
+        - {$ref: '#/components/parameters/OrderId'}
+      responses:
+        '200': {description: Статус платежа}
+  /orders/{order_id}/payment/test:
+    post:
+      tags: [Orders]
+      summary: Тестовая оплата; работает только при PAYMENT_TEST_MODE=true
+      parameters:
+        - {$ref: '#/components/parameters/OrderId'}
+      responses:
+        '200': {description: Тестовый платёж подтверждён}
+        '403': {description: Тестовый режим отключён}
+        '409': {description: Заказ нельзя оплатить}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: refresh_token_cookie
+  parameters:
+    MatchId:
+      name: match_id
+      in: path
+      required: true
+      schema: {type: integer}
+    ListingId:
+      name: listing_id
+      in: path
+      required: true
+      schema: {type: integer}
+    OrderId:
+      name: order_id
+      in: path
+      required: true
+      schema: {type: integer}
+  responses:
+    Conflict:
+      description: Конфликт данных
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            details: {type: object}
