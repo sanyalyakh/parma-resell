@@ -12,6 +12,7 @@ tags:
   - name: Seller
   - name: Buyer
   - name: Orders
+  - name: Admin
 security:
   - bearerAuth: []
 paths:
