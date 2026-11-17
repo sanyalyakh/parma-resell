@@ -3,7 +3,7 @@ from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash
 from app.extensions import db
 from app.models import User, Role, Arena, Seat, SeasonTicket
-from tests.test_api_contract import make_client, TestConfig
+from test_api_contract import TestConfig
 
 
 class TicketConfig(TestConfig):

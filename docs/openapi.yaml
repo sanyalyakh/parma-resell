@@ -16,6 +16,54 @@ tags:
 security:
   - bearerAuth: []
 paths:
+  /auth/phone/send-code:
+    post:
+      tags: [Auth]
+      summary: Request phone OTP (development stub only)
+      responses:
+        '202': {description: Test OTP generated}
+        '503': {description: SMS provider unavailable}
+  /auth/phone/verify:
+    post:
+      tags: [Auth]
+      summary: Verify phone and synchronize associated tickets
+      responses:
+        '200': {description: Phone verified and sync attempted}
+  /seller/season-tickets:
+    get:
+      tags: [Seller]
+      summary: All season tickets for current user
+      responses:
+        '200': {description: Ticket list with seat and sync status}
+  /seller/season-tickets/sync:
+    post:
+      tags: [Seller]
+      summary: Synchronize by verified phone
+      responses:
+        '200': {description: Sync completed}
+        '503': {description: Provider unavailable}
+  /seller/season-tickets/{ticket_id}:
+    get:
+      tags: [Seller]
+      summary: Season ticket details
+      parameters:
+        - {name: ticket_id, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {description: Ticket}
+  /seller/season-tickets/{ticket_id}/matches:
+    get:
+      tags: [Seller]
+      summary: Candidate matches for ticket
+      parameters:
+        - {name: ticket_id, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {description: Matches}
+  /admin/ticket-source-records:
+    post:
+      tags: [Admin]
+      summary: Import source record (admin only)
+      responses:
+        '201': {description: Record imported}
   /auth/register:
     post:
       tags: [Auth]
