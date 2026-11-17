@@ -22,6 +22,7 @@
 5. Health: http://localhost:5000/api/health
 6. Swagger UI: http://localhost:5000/docs
 7. OpenAPI: http://localhost:5000/openapi.yaml
+8. Создайте администратора: `docker compose exec web flask --app wsgi:app create-admin`.
 
 ## Авторизация
 - Access token передаётся в заголовке `Authorization: Bearer <token>`.
@@ -29,6 +30,9 @@
 - Access token действует 15 минут, refresh token — 30 дней.
 - Refresh endpoint требует CSRF header/cookie, как настроено Flask-JWT-Extended.
 - В production необходимо включить HTTPS, задать уникальные SECRET_KEY/JWT_SECRET_KEY и JWT_COOKIE_SECURE=true.
+
+## Первичная настройка администратора
+После применения миграций выполните `docker compose exec web flask --app wsgi:app create-admin`. Команда интерактивно запросит email, имя, фамилию и пароль администратора. Администратор может добавлять клубы, арены, места, матчи и вручную регистрировать результат проверки абонемента через защищённые `/api/v1/admin/*` endpoints.
 
 ## Роли и подтверждение абонемента
 Регистрация создаёт роль `buyer`. Возможность публикации предложений предоставляется только после проверки абонемента. Реальная проверка не подключена: записи со статусом `verified` должны появляться только после доверенной административной/операторской процедуры.
