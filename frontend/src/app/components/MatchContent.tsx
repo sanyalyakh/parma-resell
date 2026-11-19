@@ -20,11 +20,19 @@ type MatchContentProps = {
     seat: number;
     price: number;
   }[];
+  seats: {
+    id: number;
+    sector: string;
+    row: number;
+    number: number;
+    status: "available" | "active" | "reserved" | "sold";
+  }[];
 };
 
 export default function MatchContent({
   arena,
   offers,
+  seats,
 }: MatchContentProps) {
   const [selectedSector, setSelectedSector] = useState(
     arena.sectors[0]?.id ?? ""
@@ -50,6 +58,7 @@ export default function MatchContent({
       <SeatMap
         layout={arena}
         offers={offers}
+        seats={seats}
         selectedSector={selectedSector}
         selectedRow={selectedRow}
         selectedSeat={selectedSeat}
