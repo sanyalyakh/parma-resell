@@ -48,7 +48,7 @@ def test_phone_sync_multiple_tickets_and_isolation():
         response = client.post("/api/v1/admin/ticket-source-records", headers=admin_headers, json={
             "phone": "+79990001122", "external_id": f"source-{i}",
             "number": f"AB-{i}", "seat_id": seat_id, "season": "2026/27"})
-        assert response.status_code == 201
+        assert response.status_code == 201, response.get_json()
     start = client.post("/api/v1/auth/phone/send-code", headers=headers, json={"phone": "+79990001122"})
     assert start.status_code == 202
     verified = client.post("/api/v1/auth/phone/verify", headers=headers,

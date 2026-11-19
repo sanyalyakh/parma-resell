@@ -673,7 +673,7 @@ def admin_create_season_ticket():
 
 def phone_normalize(raw):
     value = str(raw or "").strip()
-    return value if re.fullmatch(r"\\+[1-9][0-9]{7,14}", value) else None
+    return value if re.fullmatch(r"\+[1-9][0-9]{7,14}", value) else None
 
 
 def phone_code_hash(user_id, phone, code):
