@@ -211,12 +211,6 @@ paths:
         - {$ref: '#/components/parameters/ListingId'}
       responses:
         '204': {description: Предложение снято}
-  /seller/season-tickets:
-    get:
-      tags: [Seller]
-      summary: Абонементы текущего пользователя и статусы проверки
-      responses:
-        '200': {description: Список абонементов}
   /seller/dashboard:
     get:
       tags: [Seller]
