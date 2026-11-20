@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -6,14 +7,36 @@ import { apiRequest, ApiUser, getToken } from "@/app/lib/api";
 import Header from "@/app/components/Header";
 
 export default function ProfilePage() {
-  const [user, setUser] = useState({firstName: "—", lastName: "—", phone: "—", email: ""});
+  const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const [userData, setUserData] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+  });
+
+  const [savedUserData, setSavedUserData] = useState(userData);
   useEffect(() => {
-    if (!getToken()) { Promise.resolve().then(() => setError("Войдите в аккаунт, чтобы увидеть профиль")); return; }
-    apiRequest<{user: ApiUser}>("/api/auth/me")
-      .then(({user}) => setUser({firstName: "—", lastName: "—", phone: user.phone, email: user.email || ""}))
-      .catch((e) => setError(e instanceof Error ? e.message : "Не удалось загрузить профиль"));
+    if (!getToken()) { Promise.resolve().then(() => setError("Войдите, чтобы увидеть профиль")); return; }
+    apiRequest<{user: ApiUser}>("/api/auth/me").then(({user}) => {
+      const data = {firstName: user.first_name || "", lastName: user.last_name || "", phone: user.phone, email: user.email || ""};
+      setUserData(data); setSavedUserData(data);
+    }).catch(e => setError(e instanceof Error ? e.message : "Ошибка загрузки"));
   }, []);
+  async function saveProfile() {
+    setSaving(true); setError("");
+    try {
+      const {user} = await apiRequest<{user: ApiUser}>("/api/auth/me", {
+        method: "PATCH", body: JSON.stringify({first_name: userData.firstName, last_name: userData.lastName, email: userData.email})
+      });
+      const data = {firstName: user.first_name || "", lastName: user.last_name || "", phone: user.phone, email: user.email || ""};
+      setUserData(data); setSavedUserData(data); setIsEditing(false);
+    } catch(e) {setError(e instanceof Error ? e.message : "Не удалось сохранить профиль");}
+    finally {setSaving(false);}
+  }
 
   return (
     <main className="min-h-screen bg-[#F3F6FA]">
@@ -55,7 +78,7 @@ export default function ProfilePage() {
 
                 <div>
                   <h2 className="text-2xl font-black">
-                    {user.phone}
+                    {userData.firstName} {userData.lastName}
                   </h2>
                   <p className="mt-1 text-sm text-blue-100">
                     Аккаунт PARMA RESELL
@@ -69,35 +92,114 @@ export default function ProfilePage() {
                 Личные данные
               </h3>
 
+              {isEditing ? (
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => {
+                      void saveProfile();
+                    }}
+                    className="rounded-xl bg-[#0057A8] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700"
+                  >
+                    Сохранить
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserData(savedUserData);
+                      setIsEditing(false);
+                    }}
+                    className="rounded-xl border border-gray-200 px-5 py-3 text-sm font-bold text-gray-600 transition hover:bg-gray-50"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="mt-4 rounded-xl bg-[#0057A8] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700"
+                >
+                  Редактировать профиль
+                </button>
+              )}
+
               <div className="mt-6 grid gap-5 sm:grid-cols-2">
                 <div className="rounded-xl bg-[#F3F6FA] p-4">
                   <p className="text-sm text-gray-500">Имя</p>
-                  <p className="mt-2 font-bold text-gray-900">
-                    {user.firstName}
-                  </p>
+
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={userData.firstName}
+                      onChange={(e) =>
+                        setUserData({
+                          ...userData,
+                          firstName: e.target.value,
+                        })
+                      }
+                      className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 font-semibold text-gray-900 outline-none focus:border-[#0057A8]"
+                    />
+                  ) : (
+                    <p className="mt-2 font-bold text-gray-900">
+                      {userData.firstName}
+                    </p>
+                  )}
                 </div>
 
                 <div className="rounded-xl bg-[#F3F6FA] p-4">
                   <p className="text-sm text-gray-500">Фамилия</p>
-                  <p className="mt-2 font-bold text-gray-900">
-                    {user.lastName}
-                  </p>
+
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={userData.lastName}
+                      onChange={(e) =>
+                        setUserData({
+                          ...userData,
+                          lastName: e.target.value,
+                        })
+                      }
+                      className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 font-semibold text-gray-900 outline-none focus:border-[#0057A8]"
+                    />
+                  ) : (
+                    <p className="mt-2 font-bold text-gray-900">
+                      {userData.lastName}
+                    </p>
+                  )}
                 </div>
 
                 <div className="rounded-xl bg-[#F3F6FA] p-4">
                   <p className="text-sm text-gray-500">Номер телефона</p>
-                  <p className="mt-2 font-bold text-gray-900">
-                    {user.phone}
-                  </p>
+
+                  <p className="mt-2 font-bold text-gray-900">{userData.phone || "—"}</p>
+                  <p className="mt-1 text-xs text-gray-500">Изменение номера требует SMS-подтверждения</p>
                 </div>
 
                 <div className="rounded-xl bg-[#F3F6FA] p-4">
                   <p className="text-sm text-gray-500">
                     Электронная почта
                   </p>
-                  <p className="mt-2 break-all font-bold text-gray-900">
-                    {user.email || "Не указана"}
-                  </p>
+
+                  {isEditing ? (
+                    <input
+                      type="email"
+                      value={userData.email}
+                      onChange={(e) =>
+                        setUserData({
+                          ...userData,
+                          email: e.target.value,
+                        })
+                      }
+                      className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 font-semibold text-gray-900 outline-none focus:border-[#0057A8]"
+                    />
+                  ) : (
+                    <p className="mt-2 break-all font-bold text-gray-900">
+                      {userData.email || "Не указана"}
+                    </p>
+                  )}
                 </div>
               </div>
 
