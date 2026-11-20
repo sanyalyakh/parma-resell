@@ -13,7 +13,7 @@ export default function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   useEffect(() => {
     const sync = () => setIsLoggedIn(Boolean(getToken()));
-    sync();
+    queueMicrotask(sync);
     window.addEventListener("parma-auth-changed", sync);
     window.addEventListener("storage", sync);
     return () => {window.removeEventListener("parma-auth-changed", sync); window.removeEventListener("storage", sync);};
