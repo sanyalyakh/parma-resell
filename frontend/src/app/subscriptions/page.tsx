@@ -1,51 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiRequest, ApiTicket, getToken } from "@/app/lib/api";
 import Link from "next/link";
 import Header from "@/app/components/Header";
 
 type Subscription = {
-  id: number;
+  id: string;
   number: string;
   season: string;
   sector: string;
-  row: number;
-  seat: number;
-  status: "Активен" | "Истёк";
+  row: string;
+  seat: string;
+  status: "Активен" | "На проверке";
 };
 
-const subscriptions: Subscription[] = [
-  {
-    id: 1,
-    number: "001",
-    season: "2026/2027",
-    sector: "Сектор A",
-    row: 3,
-    seat: 12,
-    status: "Активен",
-  },
-  {
-    id: 2,
-    number: "002",
-    season: "2026/2027",
-    sector: "Сектор B",
-    row: 5,
-    seat: 8,
-    status: "Активен",
-  },
-  {
-    id: 3,
-    number: "003",
-    season: "2025/2026",
-    sector: "Сектор C",
-    row: 2,
-    seat: 15,
-    status: "Истёк",
-  },
-];
 
 export default function SubscriptionsPage() {
   const [showExpired, setShowExpired] = useState(false);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!getToken()) {setError("Для просмотра абонементов войдите в аккаунт"); return;}
+    apiRequest<{items: ApiTicket[]}>("/api/my/tickets")
+      .then(({items}) => setSubscriptions(items.map(t => ({id: t.id, number: t.id.slice(0,8), season: t.season,
+        sector: "—", row: "—", seat: "—", status: t.verification_status === "verified" ? "Активен" : "На проверке"}))))
+      .catch(e => setError(e instanceof Error ? e.message : "Ошибка загрузки"));
+  }, []);
 
   const filteredSubscriptions = showExpired
     ? subscriptions
@@ -70,7 +51,7 @@ export default function SubscriptionsPage() {
               </h1>
 
               <p className="mt-2 text-gray-500">
-                Все абонементы, привязанные к твоему номеру телефона
+                Абонементы, привязанные к твоему аккаунту (автоматическая синхронизация с клубом пока недоступна)
               </p>
             </div>
 
@@ -108,6 +89,7 @@ export default function SubscriptionsPage() {
             </button>
           </div>
 
+          {error && <p role="alert" className="mt-6 text-red-600">{error}</p>}
           {filteredSubscriptions.length > 0 ? (
             <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {filteredSubscriptions.map((subscription) => (
@@ -133,7 +115,7 @@ export default function SubscriptionsPage() {
                     </div>
 
                     <p className="mt-8 text-sm text-blue-200">
-                      Номер абонемента
+                      ID абонемента
                     </p>
 
                     <h2 className="mt-1 text-3xl font-black">
