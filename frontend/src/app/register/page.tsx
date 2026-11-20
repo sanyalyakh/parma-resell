@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { apiPost, saveSession } from "@/app/lib/api";
 
 import Header from "@/app/components/Header";
 
@@ -9,6 +11,25 @@ import { useState } from "react";
 
 
 export default function RegisterPage() {
+  const router = useRouter();
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isFormValid) return;
+    setPending(true);
+    setError("");
+    try {
+      await apiPost("/api/auth/register", {phone: "+7" + phone, password, ...(email.trim() ? {email: email.trim()} : {})});
+      const data = await apiPost<{access_token: string}>("/api/auth/login", {phone: "+7" + phone, password});
+      saveSession(data.access_token);
+      router.push("/profile");
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось зарегистрироваться");
+    } finally { setPending(false); }
+  }
+
 
   const [phone, setPhone] = useState("");
 
@@ -108,7 +129,7 @@ export default function RegisterPage() {
               </p>
             </div>
 
-            <form className="space-y-4">
+            <form className="space-y-4" onSubmit={submit}>
               {/* Имя и фамилия */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
@@ -341,12 +362,13 @@ export default function RegisterPage() {
               </label>
 
               {/* Кнопка */}
+              {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
               <button
-                type="button"
-                disabled={!isFormValid}
+                type="submit"
+                disabled={!isFormValid || pending}
                 className="w-full rounded-xl bg-[#0057A8] px-5 py-4 text-sm font-bold text-white transition hover:bg-[#004582] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Зарегистрироваться
+                {pending ? "Создаём аккаунт..." : "Зарегистрироваться"}
               </button>
             </form>
 
