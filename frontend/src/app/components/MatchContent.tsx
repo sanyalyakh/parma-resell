@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -20,11 +21,22 @@ type MatchContentProps = {
     seat: number;
     price: number;
   }[];
+  seats: {
+    id: number;
+    sector: string;
+    row: number;
+    number: number;
+    status: "available" | "active" | "reserved" | "sold";
+  }[];
 };
+
+const normalizeSector = (sector: string) =>
+  sector.replace(/^Сектор\s+/i, "").trim();
 
 export default function MatchContent({
   arena,
   offers,
+  seats,
 }: MatchContentProps) {
   const [selectedSector, setSelectedSector] = useState(
     arena.sectors[0]?.id ?? ""
@@ -33,10 +45,12 @@ export default function MatchContent({
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
 
-  const [sortOrder, setSortOrder] = useState("asc");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const filteredOffers = offers.filter(
-    (offer) => offer.sector === `Сектор ${selectedSector}`
+    (offer) =>
+      normalizeSector(offer.sector) ===
+      normalizeSector(selectedSector)
   );
 
   const sortedOffers = [...filteredOffers].sort((a, b) => {
@@ -50,6 +64,7 @@ export default function MatchContent({
       <SeatMap
         layout={arena}
         offers={offers}
+        seats={seats}
         selectedSector={selectedSector}
         selectedRow={selectedRow}
         selectedSeat={selectedSeat}
@@ -59,7 +74,6 @@ export default function MatchContent({
       />
 
       <div className="mt-10">
-        
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <h2 className="text-2xl font-black">
             Доступные предложения
@@ -72,7 +86,9 @@ export default function MatchContent({
 
             <select
               value={sortOrder}
-              onChange={(event) => setSortOrder(event.target.value)}
+              onChange={(event) =>
+                setSortOrder(event.target.value as "asc" | "desc")
+              }
               className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-[#0057A8]"
             >
               <option value="asc">Сначала дешевле</option>
@@ -81,11 +97,11 @@ export default function MatchContent({
           </div>
         </div>
 
-
         <div className="grid gap-4 md:grid-cols-2">
           {sortedOffers.map((offer) => {
             const isSelected =
-              selectedSector === offer.sector.replace("Сектор ", "") &&
+              normalizeSector(selectedSector) ===
+                normalizeSector(offer.sector) &&
               selectedRow === offer.row &&
               selectedSeat === offer.seat;
 
@@ -114,7 +130,7 @@ export default function MatchContent({
                   <button
                     onClick={() => {
                       setSelectedSector(
-                        offer.sector.replace("Сектор ", "")
+                        normalizeSector(offer.sector)
                       );
                       setSelectedRow(offer.row);
                       setSelectedSeat(offer.seat);
@@ -128,8 +144,13 @@ export default function MatchContent({
             );
           })}
         </div>
-      </div>
 
+        {filteredOffers.length === 0 && (
+          <p className="rounded-xl bg-gray-50 p-6 text-center text-gray-500">
+            В выбранном секторе пока нет предложений.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
