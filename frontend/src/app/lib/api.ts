@@ -45,6 +45,6 @@ export function apiPost<T>(path: string, data: unknown): Promise<T> {
   return apiRequest<T>(path, {method: "POST", body: JSON.stringify(data)});
 }
 
-export type ApiUser = {id: string; phone: string; email: string | null; role: string; club_id: string | null};
+export type ApiUser = {id: string; phone: string; email: string | null; first_name: string | null; last_name: string | null; role: string; club_id: string | null};
 export type ApiTicket = {id: string; provider_ticket_id: string; season: string; verification_status: string; seat_id: string; club_id: string};
 export type ApiOrder = {id: string; status: string; amount_kopecks: number; opponent: string; starts_at: string; match_id: string; listing_id: string};
