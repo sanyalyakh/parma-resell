@@ -51,11 +51,6 @@ export default function SeatMap({
       normalizeSector(seat.sector) === normalizeSector(selectedSector)
   );
 
-  const availableOffers = offers.filter(
-    (offer) =>
-      normalizeSector(offer.sector) === normalizeSector(selectedSector)
-  );
-
   const rows = [
     ...new Set(sectorSeats.map((seat) => seat.row)),
   ].sort((a, b) => a - b);
