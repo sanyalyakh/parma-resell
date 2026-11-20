@@ -1,3 +1,4 @@
+import Link from "next/link";
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,7 +12,7 @@ export default function PurchasesPage() {
   const [purchases, setPurchases] = useState<ApiOrder[]>([]);
   const [error, setError] = useState("");
   useEffect(() => {
-    if (!getToken()) { setError("Для просмотра покупок войдите в аккаунт"); return; }
+    if (!getToken()) { Promise.resolve().then(() => setError("Для просмотра покупок войдите в аккаунт")); return; }
     apiRequest<{items: ApiOrder[]}>("/api/my/orders").then(data => setPurchases(data.items))
       .catch(e => setError(e instanceof Error ? e.message : "Ошибка загрузки"));
   }, []);
