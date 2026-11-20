@@ -21,7 +21,7 @@ export default function SubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [error, setError] = useState("");
   useEffect(() => {
-    if (!getToken()) {setError("Для просмотра абонементов войдите в аккаунт"); return;}
+    if (!getToken()) { Promise.resolve().then(() => setError("Для просмотра абонементов войдите в аккаунт")); return; }
     apiRequest<{items: ApiTicket[]}>("/api/my/tickets")
       .then(({items}) => setSubscriptions(items.map(t => ({id: t.id, number: t.id.slice(0,8), season: t.season,
         sector: "—", row: "—", seat: "—", status: t.verification_status === "verified" ? "Активен" : "На проверке"}))))
