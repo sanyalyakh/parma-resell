@@ -6,7 +6,7 @@ import MatchContent from "@/app/components/MatchContent";
 import type { Match } from "@/app/data/matches";
 type ListingsResponse = {
   items: {
-    id: number;
+    id: string;
     sector: string;
     row: string | number;
     seat: string | number;
@@ -16,7 +16,7 @@ type ListingsResponse = {
 
 type SeatsResponse = {
   items: {
-    id: number;
+    id: string;
     sector: string;
     row: string | number;
     number: string | number;
