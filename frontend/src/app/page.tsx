@@ -12,7 +12,7 @@ export default async function Home() {
 
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/matches`,
+      `${(process.env.BACKEND_INTERNAL_URL || "http://127.0.0.1:5000")}/api/matches`,
       { cache: "no-store" }
     );
 
@@ -22,7 +22,6 @@ export default async function Home() {
 
     const data: MatchesResponse = await response.json();
 
-    console.log("Ответ нового API:", data);
 
     matches = data.items;
   } catch {
