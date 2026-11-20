@@ -22,6 +22,7 @@ API_CONTRACT = {
     ],
     "holder": [
         "GET /api/my/tickets",
+        "GET /api/my/orders",
         "POST /api/my/tickets",
         "GET /api/my/listings",
         "POST /api/my/listings",
