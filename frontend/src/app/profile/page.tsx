@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { apiRequest, ApiUser, getToken } from "@/app/lib/api";
 import Header from "@/app/components/Header";
 
 export default function ProfilePage() {
-  // Временные данные для отображения
-  // Позже заменю их данными пользователя с бэкенда
-  const user = {
-    firstName: "Иван",
-    lastName: "Иванов",
-    phone: "+7 (999) 123-45-67",
-    email: "ivan@example.com",
-  };
+  const [user, setUser] = useState({firstName: "—", lastName: "—", phone: "—", email: ""});
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!getToken()) { setError("Войдите в аккаунт, чтобы увидеть профиль"); return; }
+    apiRequest<{user: ApiUser}>("/api/auth/me")
+      .then(({user}) => setUser({firstName: "—", lastName: "—", phone: user.phone, email: user.email || ""}))
+      .catch((e) => setError(e instanceof Error ? e.message : "Не удалось загрузить профиль"));
+  }, []);
 
   return (
     <main className="min-h-screen bg-[#F3F6FA]">
@@ -31,6 +33,7 @@ export default function ProfilePage() {
             Информация о твоём аккаунте
           </p>
 
+          {error && <p role="alert" className="mt-4 text-red-600">{error}</p>}
           <div className="mt-8 overflow-hidden rounded-2xl bg-white shadow-sm">
             <div className="bg-[#0057A8] px-6 py-8 text-white sm:px-8">
               <div className="flex items-center gap-5">
@@ -52,7 +55,7 @@ export default function ProfilePage() {
 
                 <div>
                   <h2 className="text-2xl font-black">
-                    {user.firstName} {user.lastName}
+                    {user.phone}
                   </h2>
                   <p className="mt-1 text-sm text-blue-100">
                     Аккаунт PARMA RESELL
