@@ -1,0 +1,5 @@
+Single-database Alembic migrations for PARMA RESELL.
+
+Use: flask --app wsgi:app db upgrade
+Create future revisions: flask --app wsgi:app db migrate -m "description"
+Review generated revisions before applying.
