@@ -1,0 +1,48 @@
+name: Demo website smoke test
+on:
+  push:
+    branches: [mvp/integrated-v1]
+  pull_request:
+    branches: [main]
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare local-only demo configuration
+        run: |
+          cp .env.demo.example .env.demo
+          sed -i 's/^DEMO_DB_PASSWORD=.*/DEMO_DB_PASSWORD=ci-local-db-password-2026/' .env.demo
+          sed -i 's/^DEMO_SECRET_KEY=.*/DEMO_SECRET_KEY=ci-only-test-secret-with-32-characters-minimum/' .env.demo
+          sed -i 's/^DEMO_USER_PASSWORD=.*/DEMO_USER_PASSWORD=ci-demo-password-2026/' .env.demo
+      - name: Build and start demo
+        run: docker compose --env-file .env.demo -f docker-compose.demo.yml up --build -d --wait
+      - name: Verify seeded catalog, accounts and frontend
+        run: |
+          python - <<'PY'
+          import json, subprocess, urllib.request
+          def fetch(path):
+              return urllib.request.urlopen('http://127.0.0.1:3000'+path, timeout=20).read()
+          assert b'PARMA' in fetch('/')
+          assert b'79990000001' in fetch('/demo')
+          data=json.loads(fetch('/api/matches'))
+          assert any('ЦСКА' in item['opponent'] for item in data['items'])
+          login=urllib.request.Request('http://127.0.0.1:3000/api/auth/login',
+              data=json.dumps({'phone':'+79990000001','password':'ci-demo-password-2026'}).encode(),
+              headers={'Content-Type':'application/json'})
+          token=json.load(urllib.request.urlopen(login))['access_token']
+          for path in ('/api/my/tickets','/api/my/orders'):
+              req=urllib.request.Request('http://127.0.0.1:3000'+path,
+                  headers={'Authorization':'Bearer '+token})
+              response=json.load(urllib.request.urlopen(req))
+              assert response['items'], (path,response)
+          print('Demo smoke test passed')
+          PY
+      - name: Logs on failure
+        if: failure()
+        run: docker compose --env-file .env.demo -f docker-compose.demo.yml logs --tail=100
+      - name: Stop
+        if: always()
+        run: docker compose --env-file .env.demo -f docker-compose.demo.yml down -v
