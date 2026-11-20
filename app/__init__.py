@@ -41,6 +41,9 @@ def create_app(config_class=Config):
     app.register_blueprint(ticket_admin_bp)
     app.register_blueprint(api_meta_bp)
 
+    from app.demo_seed import init_app as init_demo_seed
+    init_demo_seed(app)
+
     @app.after_request
     def security_headers(response):
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
