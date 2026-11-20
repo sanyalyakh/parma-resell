@@ -53,7 +53,7 @@ def test_listing_price_must_be_positive(app):
         db.session.add(club)
         db.session.flush()
         venue = Venue(club_id=club.id, name="Arena")
-        user = User(phone="+79000000000", email="holder@example.com", password_hash="hashed", role="holder")
+        user = User(phone="+79817716329", email="holder@example.com", password_hash="hashed", role="holder")
         db.session.add_all([venue, user])
         db.session.flush()
         seat = Seat(venue_id=venue.id, sector="A", row="1", number="10")
