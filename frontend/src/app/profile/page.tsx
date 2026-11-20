@@ -9,7 +9,7 @@ export default function ProfilePage() {
   const [user, setUser] = useState({firstName: "—", lastName: "—", phone: "—", email: ""});
   const [error, setError] = useState("");
   useEffect(() => {
-    if (!getToken()) { setError("Войдите в аккаунт, чтобы увидеть профиль"); return; }
+    if (!getToken()) { Promise.resolve().then(() => setError("Войдите в аккаунт, чтобы увидеть профиль")); return; }
     apiRequest<{user: ApiUser}>("/api/auth/me")
       .then(({user}) => setUser({firstName: "—", lastName: "—", phone: user.phone, email: user.email || ""}))
       .catch((e) => setError(e instanceof Error ? e.message : "Не удалось загрузить профиль"));
