@@ -20,7 +20,7 @@ def context():
     with app.app_context():
         db.create_all()
         club = Club(name="PARMA", slug="parma")
-        user = User(phone="+79000000000", email="holder@example.com", password_hash="unused", role="holder")
+        user = User(phone="+79817716329", email="holder@example.com", password_hash="unused", role="holder")
         db.session.add_all([club, user])
         db.session.flush()
         venue = Venue(club_id=club.id, name="Arena")
