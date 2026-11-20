@@ -2,7 +2,7 @@ name: Frontend checks
 
 on:
   push:
-    branches: [main, feature/domain-models, feature/frontend]
+    branches: [main, feature/domain-models, feature/frontend, "mvp/**"]
   pull_request:
 
 jobs:
