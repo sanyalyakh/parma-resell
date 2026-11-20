@@ -17,6 +17,13 @@ type SeatMapProps = {
     seat: number;
     price: number;
   }[];
+  seats: {
+    id: number;
+    sector: string;
+    row: number;
+    number: number;
+    status: "available" | "active" | "reserved" | "sold";
+  }[];
   selectedSector: string;
   selectedRow: number | null;
   selectedSeat: number | null;
@@ -28,6 +35,7 @@ type SeatMapProps = {
 export default function SeatMap({
   layout,
   offers,
+  seats,
   selectedSector,
   selectedRow,
   selectedSeat,
@@ -35,20 +43,46 @@ export default function SeatMap({
   onRowChange,
   onSeatChange,
 }: SeatMapProps) {
+  const normalizeSector = (sector: string) =>
+    sector.replace(/^Сектор\s+/i, "").trim();
+
+  const sectorSeats = seats.filter(
+    (seat) =>
+      normalizeSector(seat.sector) === normalizeSector(selectedSector)
+  );
+
   const availableOffers = offers.filter(
-    (offer) => offer.sector === `Сектор ${selectedSector}`
+    (offer) =>
+      normalizeSector(offer.sector) === normalizeSector(selectedSector)
   );
 
   const rows = [
-    ...new Set(availableOffers.map((offer) => offer.row)),
+    ...new Set(sectorSeats.map((seat) => seat.row)),
   ].sort((a, b) => a - b);
 
-  const seats =
+  const seatsInRow =
     selectedRow === null
       ? []
-      : availableOffers
-          .filter((offer) => offer.row === selectedRow)
-          .map((offer) => offer.seat);
+      : sectorSeats
+          .filter((seat) => seat.row === selectedRow)
+          .sort((a, b) => a.number - b.number);
+
+  const getSeatClass = (status: string, isSelected: boolean) => {
+    if (isSelected) {
+      return "border-[#F28C28] bg-[#F28C28] text-white";
+    }
+
+    switch (status) {
+      case "active":
+        return "border-[#0057A8] bg-[#0057A8] text-white hover:bg-[#004580]";
+      case "reserved":
+        return "border-[#F28C28] bg-[#F28C28] text-white cursor-not-allowed";
+      case "sold":
+        return "border-[#6B7280] bg-[#6B7280] text-white cursor-not-allowed";
+      default:
+        return "border-gray-200 bg-[#D1D5DB] text-gray-600 cursor-not-allowed";
+    }
+  };
 
   const handleSectorChange = (sector: string) => {
     onSectorChange(sector);
@@ -184,13 +218,12 @@ export default function SeatMap({
             Сектор {selectedSector} · Ряд {selectedRow} · Место {selectedSeat}
           </p>
 
-          {offers
-            .filter(
-              (offer) =>
-                offer.sector === `Сектор ${selectedSector}` &&
-                offer.row === selectedRow &&
-                offer.seat === selectedSeat
-            )
+          {offers.filter(
+            (offer) =>
+              normalizeSector(offer.sector) === selectedSector &&
+              offer.row === selectedRow &&
+              offer.seat === selectedSeat
+          )
             .map((offer) => (
               <div
                 key={offer.id}
@@ -249,29 +282,34 @@ export default function SeatMap({
       )}
 
       {/* Выбор места */}
-      {selectedRow !== null && (
-        <div className="mt-8">
-          <h3 className="mb-4 text-lg font-black sm:text-xl">
-            Выберите место
-          </h3>
+      {seatsInRow.map((seat) => {
+        const isSelected = selectedSeat === seat.number;
+        const isAvailable = seat.status === "active";
 
-          <div className="flex flex-wrap gap-2 sm:gap-3">
-            {seats.map((seat) => (
-              <button
-                key={seat}
-                onClick={() => onSeatChange(seat)}
-                className={`h-11 w-11 rounded-lg border-2 text-sm font-bold transition sm:h-12 sm:w-12 sm:text-base ${
-                  selectedSeat === seat
-                    ? "border-[#F28C28] bg-[#F28C28] text-white"
-                    : "border-gray-200 bg-white text-[#0057A8] hover:border-[#F28C28]"
-                }`}
-              >
-                {seat}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+        return (
+          <button
+            key={seat.id}
+            type="button"
+            disabled={!isAvailable}
+            onClick={() => onSeatChange(seat.number)}
+            className={`h-11 w-11 rounded-lg border-2 text-sm font-bold transition sm:h-12 sm:w-12 sm:text-base disabled:opacity-100 ${getSeatClass(
+              seat.status,
+              isSelected
+            )}`}
+            title={
+              seat.status === "active"
+                ? "Можно купить"
+                : seat.status === "reserved"
+                  ? "Забронировано"
+                  : seat.status === "sold"
+                    ? "Продано"
+                    : "Нет предложения"
+            }
+          >
+            {seat.number}
+          </button>
+        );
+      })}
     </div>
   );
 }
