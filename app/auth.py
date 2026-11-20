@@ -65,6 +65,7 @@ def require_roles(*allowed_roles):
 
 def public_user(user):
     return {"id": user.id, "phone": user.phone, "email": user.email,
+            "first_name": user.first_name, "last_name": user.last_name,
             "role": user.role, "club_id": user.club_id}
 
 
@@ -85,7 +86,14 @@ def register():
             return jsonify(error="invalid_email"), 400
     if phone is None or not isinstance(password, str) or not 8 <= len(password) <= 256:
         return jsonify(error="invalid_credentials"), 400
-    user = User(phone=phone, email=email, password_hash=generate_password_hash(password), role="buyer")
+    first_name, last_name = payload.get("first_name"), payload.get("last_name")
+    for value in (first_name, last_name):
+        if value is not None and (not isinstance(value, str) or len(value.strip()) > 80):
+            return jsonify(error="invalid_profile"), 400
+    user = User(phone=phone, email=email,
+                first_name=first_name.strip() if first_name else None,
+                last_name=last_name.strip() if last_name else None,
+                password_hash=generate_password_hash(password), role="buyer")
     db.session.add(user)
     try:
         db.session.commit()
@@ -115,3 +123,35 @@ def login():
 @require_auth
 def me():
     return jsonify(user=public_user(g.current_user)), 200
+
+
+@bp.patch("/me")
+@require_auth
+def update_profile():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify(error="invalid_json"), 400
+    # Phone changes must use a future SMS-verified flow, not a profile edit.
+    if not payload or any(key not in ("first_name", "last_name", "email") for key in payload):
+        return jsonify(error="unsupported_profile_field"), 400
+    user = g.current_user
+    for field in ("first_name", "last_name"):
+        if field in payload:
+            value = payload[field]
+            if not isinstance(value, str) or len(value.strip()) > 80:
+                return jsonify(error="invalid_profile"), 400
+            setattr(user, field, value.strip() or None)
+    if "email" in payload:
+        value = payload["email"]
+        if value is not None and not isinstance(value, str):
+            return jsonify(error="invalid_email"), 400
+        value = value.strip().lower() if value else None
+        if value and (len(value) > 254 or len(value) < 3 or "@" not in value):
+            return jsonify(error="invalid_email"), 400
+        user.email = value
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify(error="identity_already_registered"), 409
+    return jsonify(user=public_user(user)), 200
