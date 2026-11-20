@@ -24,9 +24,9 @@ def context():
         db.session.add_all([a, b])
         db.session.flush()
         venue = Venue(club_id=a.id, name="Arena")
-        admin = User(phone="+79000000000", email="admin@example.com", password_hash="unused",
+        admin = User(phone="+79291307404", email="admin@example.com", password_hash="unused",
                      role="club_admin", club_id=a.id)
-        buyer = User(phone="+79000000000", email="buyer@example.com", password_hash="unused", role="buyer")
+        buyer = User(phone="+79019878384", email="buyer@example.com", password_hash="unused", role="buyer")
         db.session.add_all([venue, admin, buyer])
         db.session.commit()
         from app.auth import serializer
