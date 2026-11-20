@@ -1,7 +1,7 @@
 name: Backend tests
 on:
   push:
-    branches: [main, feature/domain-models]
+    branches: [main, feature/domain-models, "mvp/**"]
   pull_request:
 jobs:
   test:
