@@ -50,6 +50,21 @@ def seed_demo():
                               provider_ticket_id="DEMO-TICKET-001", verification_status="verified")
         db.session.add(ticket)
         db.session.flush()
+    seller = db.session.scalar(select(User).where(User.phone == "+79990000002"))
+    if seller is None:
+        seller = User(phone="+79990000002", password_hash=generate_password_hash(password), role="holder")
+        db.session.add(seller)
+        db.session.flush()
+    seller_seat = db.session.scalar(select(Seat).where(Seat.venue_id == venue.id, Seat.sector == "A", Seat.row == "1", Seat.number == "13"))
+    if seller_seat is None:
+        seller_seat = Seat(venue_id=venue.id, sector="A", row="1", number="13")
+        db.session.add(seller_seat)
+        db.session.flush()
+    seller_ticket = db.session.scalar(select(SeasonTicket).where(SeasonTicket.club_id == club.id, SeasonTicket.provider_ticket_id == "DEMO-TICKET-002"))
+    if seller_ticket is None:
+        seller_ticket = SeasonTicket(holder_id=seller.id, club_id=club.id, seat_id=seller_seat.id, season="2026/27", provider_ticket_id="DEMO-TICKET-002", verification_status="verified")
+        db.session.add(seller_ticket)
+        db.session.flush()
     now = datetime.now(timezone.utc)
     for event_id, opponent, starts, state in (
         ("DEMO-PAST-001", "УНИКС (демо)", now - timedelta(days=14), "completed"),
@@ -61,9 +76,10 @@ def seed_demo():
                           starts_at=starts, status=state, provider_event_id=event_id)
             db.session.add(match)
             db.session.flush()
-        listing = db.session.scalar(select(Listing).where(Listing.season_ticket_id == ticket.id, Listing.match_id == match.id))
+        listing_ticket = seller_ticket if state == "completed" else ticket
+        listing = db.session.scalar(select(Listing).where(Listing.season_ticket_id == listing_ticket.id, Listing.match_id == match.id))
         if listing is None:
-            listing = Listing(season_ticket_id=ticket.id, match_id=match.id,
+            listing = Listing(season_ticket_id=listing_ticket.id, match_id=match.id,
                               price_kopecks=150000, status="sold" if state == "completed" else "draft")
             db.session.add(listing)
             db.session.flush()
