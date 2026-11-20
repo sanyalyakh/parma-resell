@@ -1,11 +1,11 @@
 export type Match = {
-  id: number;
+  id: string;
   home_club: {
-    id: number;
+    id: string;
     name: string;
   };
   away_club: {
-    id: number;
+    id: string;
     name: string;
   };
   starts_at: string;
@@ -13,7 +13,7 @@ export type Match = {
   match_type: "home" | "away";
   status: "scheduled" | "live" | "finished" | "cancelled";
   arena: {
-    id: number;
+    id: string;
     name: string;
     city: string;
   };
