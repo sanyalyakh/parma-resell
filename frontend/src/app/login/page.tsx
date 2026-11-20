@@ -1,13 +1,33 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { apiPost, saveSession } from "@/app/lib/api";
 
 import Link from "next/link";
 
 import Header from "@/app/components/Header";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setPending(true);
+    try {
+      const data = await apiPost<{access_token: string}>("/api/auth/login", {phone: "+7" + phone.replace(/\D/g, ""), password});
+      saveSession(data.access_token);
+      router.push("/profile");
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось войти");
+    } finally { setPending(false); }
+  }
 
   const [phone, setPhone] = useState("");
 
@@ -62,7 +82,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <form className="space-y-5">
+            <form className="space-y-5" onSubmit={submit}>
               <div>
                 <label
                   htmlFor="phone"
@@ -121,6 +141,8 @@ export default function LoginPage() {
                   <input
                     id="password"
                     type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     placeholder="Введи пароль"
                     required
                     className="w-full rounded-xl border border-gray-200 px-4 py-3.5 pr-12 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#0057A8] focus:ring-2 focus:ring-blue-100"
@@ -169,11 +191,13 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
               <button
-                type="button"
+                type="submit"
+                disabled={pending}
                 className="w-full rounded-xl bg-[#0057A8] px-5 py-4 text-sm font-bold text-white transition hover:bg-[#004582]"
               >
-                Войти
+                {pending ? "Входим..." : "Войти"}
               </button>
             </form>
 
