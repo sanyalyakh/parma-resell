@@ -1,17 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getToken, logout } from "@/app/lib/api";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  // Пока false. Позже заменю данное значение на реальное состояние авторизации пользователя
-  const isLoggedIn = false;
-
-  // Временное имя для отображения профиля
-  const userName = "Иван";
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  useEffect(() => {
+    const sync = () => setIsLoggedIn(Boolean(getToken()));
+    sync();
+    window.addEventListener("parma-auth-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {window.removeEventListener("parma-auth-changed", sync); window.removeEventListener("storage", sync);};
+  }, []);
+  const userName = "Мой профиль";
+  const signOut = () => { logout(); setIsProfileOpen(false); setIsMenuOpen(false); router.push("/"); router.refresh(); };
 
   const closeMenu = () => {
     setIsMenuOpen(false);
@@ -145,7 +153,7 @@ export default function Header() {
                   <div className="my-2 border-t border-gray-100" />
 
                   <button
-                    onClick={() => setIsProfileOpen(false)}
+                    onClick={signOut}
                     className="block w-full px-5 py-3 text-left text-sm font-semibold text-red-500 transition hover:bg-red-50"
                   >
                     Выйти
@@ -320,7 +328,7 @@ export default function Header() {
 
             <div className="mt-auto">
               <button
-                onClick={closeMenu}
+                onClick={signOut}
                 className="w-full rounded-xl bg-red-50 px-5 py-4 text-sm font-semibold text-red-600 transition hover:bg-red-100"
               >
                 Выйти
