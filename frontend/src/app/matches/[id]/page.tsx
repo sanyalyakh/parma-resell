@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { arenaLayouts } from "@/app/data/arenaLayouts";
@@ -155,12 +156,12 @@ export default async function MatchPage({
           />
         </div>
 
-        <a
+        <Link
           href="/"
           className="mt-8 inline-block rounded-lg bg-[#0057A8] px-6 py-3 font-bold text-white transition hover:bg-[#004580]"
         >
           Вернуться к матчам
-        </a>
+        </Link>
       </div>
     </main>
   );
