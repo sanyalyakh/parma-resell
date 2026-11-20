@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Match } from "@/app/data/matches";
 
 type MatchCardProps = {
@@ -57,12 +58,12 @@ export default function MatchCard({ match }: MatchCardProps) {
         {match.arena.name}, {match.arena.city}
       </p>
 
-      <a
+      <Link
         href={`/matches/${match.id}`}
         className="block w-full rounded-lg bg-[#0057A8] px-5 py-3 text-center font-bold text-white transition hover:bg-[#004580]"
       >
         Подробнее о матче →
-      </a>
+      </Link>
     </article>
   );
 }
