@@ -25,10 +25,10 @@ def context():
         db.session.add(venue)
         db.session.flush()
         seat = Seat(venue_id=venue.id, sector="A", row="1", number="1")
-        holder = User(email="holder@example.com", password_hash="unused")
-        admin = User(email="admin@example.com", password_hash="unused",
+        holder = User(phone="+79000000000", email="holder@example.com", password_hash="unused")
+        admin = User(phone="+79000000000", email="admin@example.com", password_hash="unused",
                      role="club_admin", club_id=club.id)
-        foreign_admin = User(email="other@example.com", password_hash="unused",
+        foreign_admin = User(phone="+79000000000", email="other@example.com", password_hash="unused",
                              role="club_admin", club_id=other.id)
         db.session.add_all([seat, holder, admin, foreign_admin])
         db.session.flush()
