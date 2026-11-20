@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { apiRequest, ApiOrder, getToken } from "@/app/lib/api";
 
-import Link from "next/link";
 
 import Header from "@/app/components/Header";
 
@@ -78,9 +77,9 @@ export default function PurchasesPage() {
 
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-bold ${
-                      purchase.status === "Оплачен"
+                      purchase.status === "completed"
                         ? "bg-green-100 text-green-700"
-                        : purchase.status === "Ожидает оплаты"
+                        : purchase.status === "pending"
                           ? "bg-orange-100 text-orange-700"
                           : "bg-red-100 text-red-600"
                     }`}
@@ -121,7 +120,7 @@ export default function PurchasesPage() {
                   </span>
                 </div>
 
-                {purchase.status === "Оплачен" && (
+                {purchase.status === "completed" && (
                   <Link
                     href={`/purchases/${purchase.id}`}
                     className="mt-5 block w-full rounded-xl bg-[#0057A8] px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-[#004680]"
