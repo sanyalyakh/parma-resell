@@ -1,10 +1,27 @@
+import { notFound } from "next/navigation";
+
 import { arenaLayouts } from "@/app/data/arenaLayouts";
-
 import MatchContent from "@/app/components/MatchContent";
+import type { Match } from "@/app/data/matches";
+type ListingsResponse = {
+  items: {
+    id: number;
+    sector: string;
+    row: string | number;
+    seat: string | number;
+    price: string | number;
+  }[];
+};
 
-import { matches } from "@/app/data/matches";
-
-import { offers } from "@/app/data/offers";
+type SeatsResponse = {
+  items: {
+    id: number;
+    sector: string;
+    row: string | number;
+    number: string | number;
+    status: "available" | "active" | "reserved" | "sold";
+  }[];
+};
 
 export const instant = false;
 
@@ -19,21 +36,76 @@ export default async function MatchPage({
 }: MatchPageProps) {
   const { id } = await params;
 
-  const match = matches.find((item) => item.id === Number(id));
+  let response: Response;
 
-  if (!match) {
-    return <div>Матч не найден</div>;
+  try {
+    response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/matches/${id}`,
+      { cache: "no-store" }
+    );
+  } catch {
+    throw new Error("Не удалось загрузить информацию о матче");
   }
 
-  const matchOffers = offers.filter(
-    (offer) => offer.matchId === match.id
-  );
+  if (response.status === 404) {
+    notFound();
+  }
 
-  const arenaId = match.arenaId;
+  if (!response.ok) {
+    throw new Error("Не удалось загрузить матч");
+  }
 
-  const arena = arenaLayouts.find(
-    (layout) => layout.id === arenaId
-  ) ?? arenaLayouts[0];
+  const match: Match = await response.json();
+
+  const [listingsResponse, seatsResponse] = await Promise.all([
+    fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/matches/${id}/listings`,
+      { cache: "no-store" }
+    ),
+    fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/matches/${id}/seats`,
+      { cache: "no-store" }
+    ),
+  ]);
+
+  if (!listingsResponse.ok || !seatsResponse.ok) {
+    throw new Error("Не удалось загрузить места и предложения");
+  }
+
+  const listingsData: ListingsResponse = await listingsResponse.json();
+  const seatsData: SeatsResponse = await seatsResponse.json();
+
+  const matchOffers = listingsData.items.map((item) => ({
+    id: item.id,
+    sector: item.sector,
+    row: Number(item.row),
+    seat: Number(item.seat),
+    price: Number(item.price),
+  }));
+
+  const matchSeats = seatsData.items.map((item) => ({
+    id: item.id,
+    sector: item.sector,
+    row: Number(item.row),
+    number: Number(item.number),
+    status: item.status,
+  }));
+
+  const arena =
+    arenaLayouts.find(
+      (layout) => layout.name === match.arena.name
+    ) ?? arenaLayouts[0];
+
+  const formattedDate = new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(match.starts_at));
+
+  const formattedTime = new Intl.DateTimeFormat("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(match.starts_at));
 
   return (
     <main className="min-h-screen bg-gray-50 px-6 py-16 md:px-16">
@@ -43,37 +115,45 @@ export default async function MatchPage({
         </p>
 
         <h1 className="text-3xl font-black">
-          БК ПАРМА — {match.opponent}
+          {match.home_club.name} — {match.away_club.name}
         </h1>
 
         <p className="mt-4 text-gray-500">
-          {match.tournament}
+          {match.competition}
         </p>
 
         <p className="mt-2 text-sm font-bold text-[#0057A8]">
-          {match.matchType === "home" ? "Домашний матч" : "Выездной матч"}
+          {match.match_type === "home"
+            ? "Домашний матч"
+            : "Выездной матч"}
         </p>
 
         <div className="mt-6 flex flex-wrap gap-4">
           <div className="rounded-xl bg-gray-50 px-5 py-4">
             <p className="text-sm text-gray-500">Дата матча</p>
-            <p className="mt-1 font-bold">{match.date}</p>
+            <p className="mt-1 font-bold">{formattedDate}</p>
           </div>
 
           <div className="rounded-xl bg-gray-50 px-5 py-4">
             <p className="text-sm text-gray-500">Начало</p>
-            <p className="mt-1 font-bold">{match.time}</p>
+            <p className="mt-1 font-bold">{formattedTime}</p>
           </div>
 
           <div className="rounded-xl bg-gray-50 px-5 py-4">
             <p className="text-sm text-gray-500">Место проведения</p>
-            <p className="mt-1 font-bold">{match.venue}</p>
+            <p className="mt-1 font-bold">
+              {match.arena.name}, {match.arena.city}
+            </p>
           </div>
         </div>
 
         <div className="mt-10">
-          <MatchContent arena={arena} offers={matchOffers} />
-        </div>       
+          <MatchContent
+            arena={arena}
+            offers={matchOffers}
+            seats={matchSeats}
+          />
+        </div>
 
         <a
           href="/"
