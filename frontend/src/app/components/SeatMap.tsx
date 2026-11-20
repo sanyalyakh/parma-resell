@@ -11,14 +11,14 @@ type SeatMapProps = {
     }[];
   };
   offers: {
-    id: number;
+    id: string;
     sector: string;
     row: number;
     seat: number;
     price: number;
   }[];
   seats: {
-    id: number;
+    id: string;
     sector: string;
     row: number;
     number: number;
