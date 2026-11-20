@@ -44,14 +44,16 @@ export default function SeatMap({
   onSeatChange,
 }: SeatMapProps) {
   const normalizeSector = (sector: string) =>
-    sector.replace("Сектор ", "").trim();
+    sector.replace(/^Сектор\s+/i, "").trim();
 
   const sectorSeats = seats.filter(
-    (seat) => normalizeSector(seat.sector) === selectedSector
+    (seat) =>
+      normalizeSector(seat.sector) === normalizeSector(selectedSector)
   );
 
   const availableOffers = offers.filter(
-    (offer) => normalizeSector(offer.sector) === selectedSector
+    (offer) =>
+      normalizeSector(offer.sector) === normalizeSector(selectedSector)
   );
 
   const rows = [
@@ -216,13 +218,12 @@ export default function SeatMap({
             Сектор {selectedSector} · Ряд {selectedRow} · Место {selectedSeat}
           </p>
 
-          {offers
-            .filter(
-              (offer) =>
-                offer.sector === `Сектор ${selectedSector}` &&
-                offer.row === selectedRow &&
-                offer.seat === selectedSeat
-            )
+          {offers.filter(
+            (offer) =>
+              normalizeSector(offer.sector) === selectedSector &&
+              offer.row === selectedRow &&
+              offer.seat === selectedSeat
+          )
             .map((offer) => (
               <div
                 key={offer.id}

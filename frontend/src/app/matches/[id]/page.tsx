@@ -36,26 +36,26 @@ export default async function MatchPage({
 }: MatchPageProps) {
   const { id } = await params;
 
-  let match: Match;
+  let response: Response;
 
   try {
-    const response = await fetch(
+    response = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/matches/${id}`,
       { cache: "no-store" }
     );
-
-    if (response.status === 404) {
-      notFound();
-    }
-
-    if (!response.ok) {
-      throw new Error("Не удалось загрузить матч");
-    }
-
-    match = await response.json();
   } catch {
     throw new Error("Не удалось загрузить информацию о матче");
   }
+
+  if (response.status === 404) {
+    notFound();
+  }
+
+  if (!response.ok) {
+    throw new Error("Не удалось загрузить матч");
+  }
+
+  const match: Match = await response.json();
 
   const [listingsResponse, seatsResponse] = await Promise.all([
     fetch(

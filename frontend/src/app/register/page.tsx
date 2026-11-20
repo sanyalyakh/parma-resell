@@ -6,8 +6,6 @@ import Header from "@/app/components/Header";
 
 import { useState } from "react";
 
-
-
 export default function RegisterPage() {
 
   const [phone, setPhone] = useState("");
@@ -19,6 +17,9 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -56,6 +57,25 @@ export default function RegisterPage() {
     password.length >= 8 &&
     password === confirmPassword &&
     acceptedTerms;
+
+    const handleRegister = async () => {
+      setError("");
+      setLoading(true);
+
+      try {
+        console.log("Регистрация:", {
+          first_name: firstName,
+          last_name: lastName,
+          email: email.trim() || null,
+          phone,
+          password,
+        });
+      } catch {
+        setError("Не удалось выполнить регистрацию. Попробуй ещё раз.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
   return (
     <main className="min-h-screen bg-[#F3F6FA]">
@@ -108,7 +128,13 @@ export default function RegisterPage() {
               </p>
             </div>
 
-            <form className="space-y-4">
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleRegister();
+              }}
+            >
               {/* Имя и фамилия */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
@@ -340,13 +366,19 @@ export default function RegisterPage() {
                 </span>
               </label>
 
+              {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {error}
+                </div>
+              )}
+
               {/* Кнопка */}
               <button
-                type="button"
-                disabled={!isFormValid}
+                type="submit"
+                disabled={!isFormValid || loading}
                 className="w-full rounded-xl bg-[#0057A8] px-5 py-4 text-sm font-bold text-white transition hover:bg-[#004582] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Зарегистрироваться
+                {loading ? "Регистрируем..." : "Зарегистрироваться"}
               </button>
             </form>
 

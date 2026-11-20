@@ -10,6 +10,23 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      // Здесь позже добавим запрос к API
+      console.log("Авторизация:", { phone, password });
+    } catch {
+      setError("Не удалось выполнить вход. Попробуй ещё раз.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-[#F3F6FA]">
@@ -62,7 +79,13 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <form className="space-y-5">
+            <form
+              className="space-y-5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleLogin();
+              }}
+            >
               <div>
                 <label
                   htmlFor="phone"
@@ -122,6 +145,8 @@ export default function LoginPage() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Введи пароль"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     required
                     className="w-full rounded-xl border border-gray-200 px-4 py-3.5 pr-12 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#0057A8] focus:ring-2 focus:ring-blue-100"
                   />
@@ -169,11 +194,18 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {error}
+                </div>
+              )}
+
               <button
-                type="button"
+                type="submit"
+                disabled={loading}
                 className="w-full rounded-xl bg-[#0057A8] px-5 py-4 text-sm font-bold text-white transition hover:bg-[#004582]"
               >
-                Войти
+                {loading ? "Входим..." : "Войти"}
               </button>
             </form>
 

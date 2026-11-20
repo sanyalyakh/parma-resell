@@ -1,17 +1,53 @@
+
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import Header from "@/app/components/Header";
 
+function formatPhone(value: string) {
+  const digits = value
+    .replace(/\D/g, "")
+    .replace(/^7/, "")
+    .replace(/^8/, "")
+    .slice(0, 10);
+
+  let result = "+7";
+
+  if (digits.length > 0) {
+    result += ` (${digits.slice(0, 3)}`;
+  }
+
+  if (digits.length >= 3) {
+    result += ")";
+  }
+
+  if (digits.length > 3) {
+    result += ` ${digits.slice(3, 6)}`;
+  }
+
+  if (digits.length > 6) {
+    result += `-${digits.slice(6, 8)}`;
+  }
+
+  if (digits.length > 8) {
+    result += `-${digits.slice(8, 10)}`;
+  }
+
+  return result;
+}
+
 export default function ProfilePage() {
-  // Временные данные для отображения
-  // Позже заменю их данными пользователя с бэкенда
-  const user = {
+  const [isEditing, setIsEditing] = useState(false);
+
+  const [userData, setUserData] = useState({
     firstName: "Иван",
     lastName: "Иванов",
     phone: "+7 (999) 123-45-67",
     email: "ivan@example.com",
-  };
+  });
+
+  const [savedUserData, setSavedUserData] = useState(userData);
 
   return (
     <main className="min-h-screen bg-[#F3F6FA]">
@@ -52,7 +88,7 @@ export default function ProfilePage() {
 
                 <div>
                   <h2 className="text-2xl font-black">
-                    {user.firstName} {user.lastName}
+                    {userData.firstName} {userData.lastName}
                   </h2>
                   <p className="mt-1 text-sm text-blue-100">
                     Аккаунт PARMA RESELL
@@ -66,35 +102,152 @@ export default function ProfilePage() {
                 Личные данные
               </h3>
 
+              {isEditing ? (
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSavedUserData(userData);
+                      setIsEditing(false);
+                    }}
+                    className="rounded-xl bg-[#0057A8] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700"
+                  >
+                    Сохранить
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserData(savedUserData);
+                      setIsEditing(false);
+                    }}
+                    className="rounded-xl border border-gray-200 px-5 py-3 text-sm font-bold text-gray-600 transition hover:bg-gray-50"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="mt-4 rounded-xl bg-[#0057A8] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700"
+                >
+                  Редактировать профиль
+                </button>
+              )}
+
               <div className="mt-6 grid gap-5 sm:grid-cols-2">
                 <div className="rounded-xl bg-[#F3F6FA] p-4">
                   <p className="text-sm text-gray-500">Имя</p>
-                  <p className="mt-2 font-bold text-gray-900">
-                    {user.firstName}
-                  </p>
+
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={userData.firstName}
+                      onChange={(e) =>
+                        setUserData({
+                          ...userData,
+                          firstName: e.target.value,
+                        })
+                      }
+                      className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 font-semibold text-gray-900 outline-none focus:border-[#0057A8]"
+                    />
+                  ) : (
+                    <p className="mt-2 font-bold text-gray-900">
+                      {userData.firstName}
+                    </p>
+                  )}
                 </div>
 
                 <div className="rounded-xl bg-[#F3F6FA] p-4">
                   <p className="text-sm text-gray-500">Фамилия</p>
-                  <p className="mt-2 font-bold text-gray-900">
-                    {user.lastName}
-                  </p>
+
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={userData.lastName}
+                      onChange={(e) =>
+                        setUserData({
+                          ...userData,
+                          lastName: e.target.value,
+                        })
+                      }
+                      className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 font-semibold text-gray-900 outline-none focus:border-[#0057A8]"
+                    />
+                  ) : (
+                    <p className="mt-2 font-bold text-gray-900">
+                      {userData.lastName}
+                    </p>
+                  )}
                 </div>
 
                 <div className="rounded-xl bg-[#F3F6FA] p-4">
                   <p className="text-sm text-gray-500">Номер телефона</p>
-                  <p className="mt-2 font-bold text-gray-900">
-                    {user.phone}
-                  </p>
+
+                  {isEditing ? (
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      value={userData.phone}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, "");
+                        setUserData({
+                          ...userData,
+                          phone: formatPhone(digits),
+                        });
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Backspace" && e.key !== "Delete") return;
+
+                        const input = e.currentTarget;
+                        const start = input.selectionStart;
+                        const end = input.selectionEnd;
+
+                        if (start === null || end === null || start !== end) return;
+
+                        const value = input.value;
+
+                        if (e.key === "Backspace" && value[start - 1] === ")") {
+                          e.preventDefault();
+                          input.setSelectionRange(start - 1, start - 1);
+                        }
+
+                        if (e.key === "Delete" && value[start] === "(") {
+                          e.preventDefault();
+                          input.setSelectionRange(start + 1, start + 1);
+                        }
+                      }}
+                      className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 font-semibold text-gray-900 outline-none focus:border-[#0057A8]"
+                    />
+                  ) : (
+                    <p className="mt-2 font-bold text-gray-900">
+                      {userData.phone}
+                    </p>
+                  )}
                 </div>
 
                 <div className="rounded-xl bg-[#F3F6FA] p-4">
                   <p className="text-sm text-gray-500">
                     Электронная почта
                   </p>
-                  <p className="mt-2 break-all font-bold text-gray-900">
-                    {user.email || "Не указана"}
-                  </p>
+
+                  {isEditing ? (
+                    <input
+                      type="email"
+                      value={userData.email}
+                      onChange={(e) =>
+                        setUserData({
+                          ...userData,
+                          email: e.target.value,
+                        })
+                      }
+                      className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 font-semibold text-gray-900 outline-none focus:border-[#0057A8]"
+                    />
+                  ) : (
+                    <p className="mt-2 break-all font-bold text-gray-900">
+                      {userData.email || "Не указана"}
+                    </p>
+                  )}
                 </div>
               </div>
 

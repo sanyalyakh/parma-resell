@@ -21,6 +21,9 @@ export default async function Home() {
     }
 
     const data: MatchesResponse = await response.json();
+
+    console.log("Ответ нового API:", data);
+
     matches = data.items;
   } catch {
     errorMessage = "Не удалось загрузить расписание. Попробуйте позже.";
