@@ -57,6 +57,8 @@ export default function Header() {
             О сервисе
           </Link>
 
+          <Link href="/demo" className="transition hover:text-orange-500">Демо-пользователи</Link>
+
           <Link href="/purchases" className="transition hover:text-orange-500">
             Кабинет покупателя
           </Link>
