@@ -1,12 +1,34 @@
 import MatchCard from "./components/MatchCard";
 
-import { matches } from "./data/matches";
-
-import Link from "next/link";
+import type { MatchesResponse } from "./data/matches";
 
 import Header from "@/app/components/Header";
 
-export default function Home() {
+export const instant = false;
+
+export default async function Home() {
+  let matches: MatchesResponse["items"] = [];
+  let errorMessage = "";
+
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/matches`,
+      { cache: "no-store" }
+    );
+
+    if (!response.ok) {
+      throw new Error("Не удалось загрузить матчи");
+    }
+
+    const data: MatchesResponse = await response.json();
+
+    console.log("Ответ нового API:", data);
+
+    matches = data.items;
+  } catch {
+    errorMessage = "Не удалось загрузить расписание. Попробуйте позже.";
+  }
+
   return (
     <main className="min-h-screen bg-white text-black">
       {/* Шапка сайта */}
@@ -67,21 +89,21 @@ export default function Home() {
           </a>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-
-          {matches.map((match) => (
-            <MatchCard
-              key={match.id}
-              id={match.id}
-              opponent={match.opponent}
-              hasOffers={match.hasOffers}
-              date={`${match.date}, ${match.time}`}
-              matchType={match.matchType}
-              venue={match.venue}
-            />
-          ))}
-
-        </div>
+        {errorMessage ? (
+          <p className="text-center text-red-600">
+            {errorMessage}
+          </p>
+        ) : matches.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {matches.map((match) => (
+              <MatchCard key={match.id} match={match} />
+            ))}
+          </div>
+        ) : (
+          <p className="py-12 text-center text-gray-500">
+            Пока нет запланированных матчей.
+          </p>
+        )}
 
       </section>
     </main>
