@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiRequest, ApiOrder, getToken } from "@/app/lib/api";
 
 import Link from "next/link";
 
@@ -8,6 +9,13 @@ import Header from "@/app/components/Header";
 
 export default function PurchasesPage() {
   const [statusFilter, setStatusFilter] = useState("Все");
+  const [purchases, setPurchases] = useState<ApiOrder[]>([]);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!getToken()) { setError("Для просмотра покупок войдите в аккаунт"); return; }
+    apiRequest<{items: ApiOrder[]}>("/api/my/orders").then(data => setPurchases(data.items))
+      .catch(e => setError(e instanceof Error ? e.message : "Ошибка загрузки"));
+  }, []);
 
   const filteredPurchases =
     statusFilter === "Все"
@@ -35,7 +43,7 @@ export default function PurchasesPage() {
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            {["Все", "Оплачен", "Ожидает оплаты", "Отменён"].map((status) => (
+            {["Все", "completed", "pending", "cancelled"].map((status) => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
@@ -45,17 +53,18 @@ export default function PurchasesPage() {
                     : "bg-white text-gray-600 hover:bg-gray-100"
                 }`}
               >
-                {status === "Оплачен"
+                {status === "completed"
                   ? "Оплаченные"
-                  : status === "Ожидает оплаты"
+                  : status === "pending"
                     ? "Ожидают оплаты"
-                    : status === "Отменён"
+                    : status === "cancelled"
                       ? "Отменённые"
                       : "Все"}
               </button>
             ))}
           </div>
 
+          {error && <p role="alert" className="mt-6 text-red-600">{error}</p>}
           <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {filteredPurchases.map((purchase) => (
               <div
@@ -76,7 +85,7 @@ export default function PurchasesPage() {
                           : "bg-red-100 text-red-600"
                     }`}
                   >
-                    {purchase.status}
+                    {purchase.status === "completed" ? "Завершён (демо)" : purchase.status}
                   </span>
                 </div>
 
@@ -85,20 +94,20 @@ export default function PurchasesPage() {
                 </h2>
 
                 <p className="mt-2 text-sm text-gray-500">
-                  {purchase.date} · {purchase.time}
+                  {new Date(purchase.starts_at).toLocaleString("ru-RU")}
                 </p>
 
                 <div className="mt-5 rounded-xl bg-[#F3F6FA] p-4">
                   <p className="font-bold text-gray-900">
-                    {purchase.arena}
+                    Информация о месте уточняется
                   </p>
 
                   <p className="mt-2 text-sm text-gray-600">
-                    {purchase.sector}
+                    Номер заказа: {purchase.id.slice(0, 8)}
                   </p>
 
                   <p className="mt-1 text-sm text-gray-600">
-                    Ряд {purchase.row} · Место {purchase.seat}
+                    {purchase.status === "completed" ? "Демонстрационная запись, не билет" : "Билет пока не выпущен"}
                   </p>
                 </div>
 
@@ -108,7 +117,7 @@ export default function PurchasesPage() {
                   </span>
 
                   <span className="text-xl font-black text-[#F28C28]">
-                    {purchase.price.toLocaleString("ru-RU")} ₽
+                    {(purchase.amount_kopecks / 100).toLocaleString("ru-RU")} ₽
                   </span>
                 </div>
 
@@ -129,41 +138,3 @@ export default function PurchasesPage() {
   );
 }
 
-const purchases = [
-  {
-    id: 1,
-    opponent: "Соперник 01",
-    date: "15 декабря 2026",
-    time: "19:00",
-    arena: "УДС «Молот»",
-    sector: "Сектор A",
-    row: 3,
-    seat: 12,
-    price: 1500,
-    status: "Оплачен",
-  },
-  {
-    id: 2,
-    opponent: "Соперник 02",
-    date: "5 января 2027",
-    time: "19:00",
-    arena: "Тестовая арена",
-    sector: "Сектор B",
-    row: 5,
-    seat: 8,
-    price: 1000,
-    status: "Ожидает оплаты",
-  },
-  {
-    id: 3,
-    opponent: "Соперник 03",
-    date: "15 января 2027",
-    time: "19:00",
-    arena: "УДС «Молот»",
-    sector: "Сектор C",
-    row: 2,
-    seat: 15,
-    price: 1700,
-    status: "Отменён",
-  },
-];
