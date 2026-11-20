@@ -17,7 +17,7 @@ def client():
     app = create_app(TestConfig)
     with app.app_context():
         db.create_all()
-        user = User(phone="+79000000000", email="buyer@example.com", password_hash="unused")
+        user = User(phone="+79019878384", email="buyer@example.com", password_hash="unused")
         db.session.add(user)
         db.session.commit()
         from app.auth import serializer
