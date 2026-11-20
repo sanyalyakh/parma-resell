@@ -20,7 +20,7 @@ export default function RegisterPage() {
     setPending(true);
     setError("");
     try {
-      await apiPost("/api/auth/register", {phone: "+7" + phone, password, ...(email.trim() ? {email: email.trim()} : {})});
+      await apiPost("/api/auth/register", {phone: "+7" + phone, password, first_name: firstName.trim(), last_name: lastName.trim(), ...(email.trim() ? {email: email.trim()} : {})});
       const data = await apiPost<{access_token: string}>("/api/auth/login", {phone: "+7" + phone, password});
       saveSession(data.access_token);
       router.push("/profile");
