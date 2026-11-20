@@ -1,0 +1,47 @@
+# Isolated development-only demo. Do not expose ports to the public internet.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: parma_resell
+      POSTGRES_USER: parma
+      POSTGRES_PASSWORD: ${DEMO_DB_PASSWORD:?Set DEMO_DB_PASSWORD in .env.demo}
+    volumes:
+      - parma_demo_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parma -d parma_resell"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: .
+    environment:
+      APP_ENV: development
+      SECRET_KEY: ${DEMO_SECRET_KEY:?Set DEMO_SECRET_KEY in .env.demo}
+      DATABASE_URL: postgresql+psycopg://parma:${DEMO_DB_PASSWORD}@db:5432/parma_resell
+      ALLOW_DEMO_SEED: "1"
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:?Set DEMO_USER_PASSWORD in .env.demo}
+    command: ["sh", "-c", "flask --app wsgi:app db upgrade && flask --app wsgi:app seed-demo && exec gunicorn --bind 0.0.0.0:5000 --workers 2 wsgi:app"]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/ready',timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      BACKEND_INTERNAL_URL: http://backend:5000
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  parma_demo_db:
