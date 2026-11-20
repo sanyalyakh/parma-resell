@@ -41,7 +41,7 @@ export default async function MatchPage({
 
   try {
     response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/matches/${id}`,
+      `${(process.env.BACKEND_INTERNAL_URL || "http://127.0.0.1:5000")}/api/matches/${id}`,
       { cache: "no-store" }
     );
   } catch {
@@ -60,11 +60,11 @@ export default async function MatchPage({
 
   const [listingsResponse, seatsResponse] = await Promise.all([
     fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/matches/${id}/listings`,
+      `${(process.env.BACKEND_INTERNAL_URL || "http://127.0.0.1:5000")}/api/matches/${id}/listings`,
       { cache: "no-store" }
     ),
     fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/matches/${id}/seats`,
+      `${(process.env.BACKEND_INTERNAL_URL || "http://127.0.0.1:5000")}/api/matches/${id}/seats`,
       { cache: "no-store" }
     ),
   ]);
