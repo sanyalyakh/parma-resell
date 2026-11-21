@@ -19,6 +19,17 @@ jobs:
           sed -i 's/^DEMO_USER_PASSWORD=.*/DEMO_USER_PASSWORD=ci-demo-password-2026/' .env.demo
       - name: Build and start demo
         run: docker compose --env-file .env.demo -f docker-compose.demo.yml up --build -d --wait
+      - name: Wait for Next.js to accept HTTP connections
+        run: |
+          for attempt in $(seq 1 40); do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:3000/demo; then
+              echo "Frontend ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Frontend failed to become ready"
+          exit 1
       - name: Verify seeded catalog, accounts and frontend
         run: |
           python - <<'PY'
