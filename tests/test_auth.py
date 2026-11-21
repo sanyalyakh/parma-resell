@@ -61,7 +61,7 @@ def test_role_guard_blocks_unprivileged_user(client):
     def admin_only():
         return {"ok": True}
 
-    data = {"phone": "+79991234570", "password": "strong-password"}
+    data = {"phone": "+79991234570", "password": "strong-password", "first_name": "Иван", "last_name": "Петров"}
     assert client.post("/api/auth/register", json=data).status_code == 201
     token = client.post("/api/auth/login", json=data).json["access_token"]
     assert client.get("/api/test/admin-only").status_code == 401
