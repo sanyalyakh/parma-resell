@@ -87,12 +87,13 @@ def register():
     if phone is None or not isinstance(password, str) or not 8 <= len(password) <= 256:
         return jsonify(error="invalid_credentials"), 400
     first_name, last_name = payload.get("first_name"), payload.get("last_name")
-    for value in (first_name, last_name):
-        if value is not None and (not isinstance(value, str) or len(value.strip()) > 80):
-            return jsonify(error="invalid_profile"), 400
+    if not isinstance(first_name, str) or not 1 <= len(first_name.strip()) <= 80:
+        return jsonify(error="invalid_first_name"), 400
+    if not isinstance(last_name, str) or not 1 <= len(last_name.strip()) <= 80:
+        return jsonify(error="invalid_last_name"), 400
     user = User(phone=phone, email=email,
-                first_name=first_name.strip() if first_name else None,
-                last_name=last_name.strip() if last_name else None,
+                first_name=first_name.strip(),
+                last_name=last_name.strip(),
                 password_hash=generate_password_hash(password), role="buyer")
     db.session.add(user)
     try:
