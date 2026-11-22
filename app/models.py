@@ -27,6 +27,8 @@ class User(TimestampMixin, db.Model):
     id = db.Column(db.String(36), primary_key=True, default=new_id)
     phone = db.Column(db.String(16), nullable=False, unique=True, index=True)
     email = db.Column(db.String(254), nullable=True, unique=True, index=True)
+    first_name = db.Column(db.String(100), nullable=True)
+    last_name = db.Column(db.String(100), nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(30), nullable=False, default="buyer")
     club_id = db.Column(db.String(36), db.ForeignKey("clubs.id"))
