@@ -81,10 +81,10 @@ def register():
     first_name = payload.get("first_name")
     last_name = payload.get("last_name")
     for value in (first_name, last_name):
-        if not isinstance(value, str) or not value.strip() or len(value.strip()) > 100:
+        if value is not None and (not isinstance(value, str) or not value.strip() or len(value.strip()) > 100):
             return jsonify(error="invalid_name"), 400
-    first_name = first_name.strip()
-    last_name = last_name.strip()
+    first_name = first_name.strip() if first_name is not None else None
+    last_name = last_name.strip() if last_name is not None else None
     if email is not None:
         if not isinstance(email, str):
             return jsonify(error="invalid_email"), 400
