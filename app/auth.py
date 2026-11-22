@@ -65,7 +65,8 @@ def require_roles(*allowed_roles):
 
 def public_user(user):
     return {"id": user.id, "phone": user.phone, "email": user.email,
-            "role": user.role, "club_id": user.club_id}
+            "role": user.role, "club_id": user.club_id,
+            "first_name": user.first_name, "last_name": user.last_name}
 
 
 @bp.post("/register")
@@ -77,6 +78,13 @@ def register():
     phone = normalize_phone(payload.get("phone"))
     password = payload.get("password")
     email = payload.get("email")
+    first_name = payload.get("first_name")
+    last_name = payload.get("last_name")
+    for value in (first_name, last_name):
+        if not isinstance(value, str) or not value.strip() or len(value.strip()) > 100:
+            return jsonify(error="invalid_name"), 400
+    first_name = first_name.strip()
+    last_name = last_name.strip()
     if email is not None:
         if not isinstance(email, str):
             return jsonify(error="invalid_email"), 400
@@ -85,7 +93,7 @@ def register():
             return jsonify(error="invalid_email"), 400
     if phone is None or not isinstance(password, str) or not 8 <= len(password) <= 256:
         return jsonify(error="invalid_credentials"), 400
-    user = User(phone=phone, email=email, password_hash=generate_password_hash(password), role="buyer")
+    user = User(phone=phone, email=email, first_name=first_name, last_name=last_name, password_hash=generate_password_hash(password), role="buyer")
     db.session.add(user)
     try:
         db.session.commit()
