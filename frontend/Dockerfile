@@ -4,6 +4,9 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# Next.js rewrites are compiled at build time; use the Docker service hostname.
+ARG BACKEND_INTERNAL_URL=http://backend:5000
+ENV BACKEND_INTERNAL_URL=${BACKEND_INTERNAL_URL}
 RUN npm run build
 
 FROM node:22-alpine
