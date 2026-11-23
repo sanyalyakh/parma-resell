@@ -16,7 +16,7 @@ def serialize_match(match):
         "opponent": match.opponent, "starts_at": match.starts_at.isoformat(),
         "status": "finished" if match.status == "completed" else match.status,
         "home_club": {"id": club.id, "name": club.name},
-        "away_club": {"id": match.id, "name": match.opponent},
+        "away_club": {"id": None, "name": match.opponent},
         "arena": {"id": venue.id, "name": venue.name, "city": "Пермь"},
         "competition": "Демонстрационный каталог" if club.ticket_provider == "mock" else "Баскетбол",
         "match_type": "home",
