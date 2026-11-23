@@ -45,3 +45,22 @@ def test_invalid_pagination(client):
     assert client.get("/api/matches?limit=10000").status_code == 400
     assert client.get("/api/matches?offset=-1").status_code == 400
     assert client.get("/api/matches?limit=abc").status_code == 400
+
+
+def test_match_card_contract_and_pagination(client):
+    response = client.get("/api/matches?limit=1&offset=0")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["limit"] == 1
+    assert body["offset"] == 0
+    assert body["pagination"]["total"] == 1
+    match = body["items"][0]
+    assert match["home_club"]["name"] == "PARMA"
+    assert match["away_club"] == {"id": None, "name": "Visitors"}
+    assert match["arena"]["name"] == "Arena"
+    assert "city" in match["arena"]
+    assert "competition" in match
+    assert match["opponent"] == "Visitors"
+    assert match["club_id"] == match["home_club"]["id"]
+    assert match["venue_id"] == match["arena"]["id"]
+    assert client.get("/api/matches?limit=1&offset=1").get_json()["items"] == []
