@@ -45,3 +45,22 @@ def test_invalid_pagination(client):
     assert client.get("/api/matches?limit=10000").status_code == 400
     assert client.get("/api/matches?offset=-1").status_code == 400
     assert client.get("/api/matches?limit=abc").status_code == 400
+
+
+def test_match_detail_and_empty_catalog(client):
+    match = client.get("/api/matches").json["items"][0]
+    path = "/api/matches/" + match["id"]
+    assert client.get(path).status_code == 200
+    assert client.get(path).json == match
+    for suffix in ("/listings", "/seats"):
+        response = client.get(path + suffix)
+        assert response.status_code == 200
+        assert response.json == {"items": []}
+
+
+def test_missing_match_catalog(client):
+    path = "/api/matches/00000000-0000-0000-0000-000000000000"
+    for suffix in ("", "/listings", "/seats"):
+        response = client.get(path + suffix)
+        assert response.status_code == 404
+        assert response.json == {"error": "match_not_found"}
