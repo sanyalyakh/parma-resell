@@ -20,6 +20,8 @@ API_CONTRACT = {
         "GET /api/clubs",
         "GET /api/matches?club_id=<id>&limit=20&offset=0",
         "GET /api/matches/<id>",
+        "GET /api/matches/<id>/listings",
+        "GET /api/matches/<id>/seats",
     ],
     "holder": [
         "GET /api/my/tickets",
