@@ -3,7 +3,7 @@ from flask import Blueprint, jsonify, request
 from sqlalchemy import select
 
 from app.extensions import db
-from app.models import Club, Match
+from app.models import Club, Listing, Match, Seat, SeasonTicket
 
 bp = Blueprint("catalog", __name__, url_prefix="/api")
 
@@ -47,3 +47,60 @@ def match_detail(match_id):
     if match is None:
         return jsonify(error="match_not_found"), 404
     return jsonify(serialize_match(match))
+
+
+def public_match_listings(match):
+    return db.session.execute(
+        select(Listing, Seat)
+        .join(SeasonTicket, Listing.season_ticket_id == SeasonTicket.id)
+        .join(Seat, SeasonTicket.seat_id == Seat.id)
+        .where(Listing.match_id == match.id,
+               SeasonTicket.club_id == match.club_id,
+               Seat.venue_id == match.venue_id,
+               SeasonTicket.verification_status == "verified",
+               Listing.status.in_(("published", "reserved", "sold")))
+        .order_by(Listing.id)
+    ).all()
+
+
+@bp.get("/matches/<uuid:match_id>/listings")
+def match_listings(match_id):
+    match = db.session.get(Match, str(match_id))
+    if match is None:
+        return jsonify(error="match_not_found"), 404
+    return jsonify(items=[{
+        "id": listing.id, "match_id": match.id, "seat_id": seat.id,
+        "sector": seat.sector, "row": seat.row, "number": seat.number,
+        "price_kopecks": listing.price_kopecks, "status": listing.status,
+    } for listing, seat in public_match_listings(match)
+        if listing.status == "published" and match.status == "scheduled"])
+
+
+@bp.get("/matches/<uuid:match_id>/seats")
+def match_seats(match_id):
+    match = db.session.get(Match, str(match_id))
+    if match is None:
+        return jsonify(error="match_not_found"), 404
+    seats = db.session.scalars(select(Seat).where(
+        Seat.venue_id == match.venue_id
+    ).order_by(Seat.sector, Seat.row, Seat.number, Seat.id)).all()
+    by_seat = {}
+    priority = {"published": 1, "reserved": 2, "sold": 3}
+    for listing, seat in public_match_listings(match):
+        previous = by_seat.get(seat.id)
+        if previous is None or priority[listing.status] > priority[previous.status]:
+            by_seat[seat.id] = listing
+    items = []
+    for seat in seats:
+        listing = by_seat.get(seat.id)
+        status = listing.status if listing else "unavailable"
+        if status == "published" and match.status != "scheduled":
+            status = "unavailable"
+        items.append({
+            "id": seat.id, "venue_id": seat.venue_id,
+            "sector": seat.sector, "row": seat.row, "number": seat.number,
+            "status": status,
+            "listing_id": listing.id if status == "published" else None,
+            "price_kopecks": listing.price_kopecks if status == "published" else None,
+        })
+    return jsonify(items=items)
