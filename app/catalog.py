@@ -1,5 +1,7 @@
 """Public read-only match catalog. Never expose unpublished ticket offers."""
+from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
+from app.demo_market import demo_enabled, eligible_offers
 from sqlalchemy import func, select
 
 from app.extensions import db
@@ -66,9 +68,16 @@ def match_seats(match_id):
         return jsonify(error="match_not_found"), 404
     seats = db.session.scalars(select(Seat).where(Seat.venue_id == match.venue_id)
                                .order_by(Seat.sector, Seat.row, Seat.number).limit(10000)).all()
-    # Without provider-backed inventory, no seat may be represented as purchasable.
-    return jsonify(items=[{"id": seat.id, "sector": seat.sector, "row": seat.row,
-                           "number": seat.number, "status": "available"} for seat in seats])
+    offers = {ticket.seat_id: listing for listing, ticket in eligible_offers(match)}
+    items = []
+    for seat in seats:
+        listing = offers.get(seat.id)
+        status = {"published": "available", "reserved": "reserved", "sold": "sold"}.get(listing.status, "unavailable") if listing else "unavailable"
+        items.append({"id": seat.id, "sector": seat.sector, "row": seat.row,
+                      "number": seat.number, "status": status,
+                      "listing_id": listing.id if status == "available" else None,
+                      "price_kopecks": listing.price_kopecks if status == "available" else None})
+    return jsonify(items=items)
 
 
 @bp.get("/matches/<match_id>/listings")
@@ -76,6 +85,7 @@ def match_listings(match_id):
     match = db.session.get(Match, match_id)
     if match is None:
         return jsonify(error="match_not_found"), 404
-    # Publishing requires the ticket provider's verified admission transfer.
-    # The preview deliberately returns no sellable offers.
-    return jsonify(items=[])
+    return jsonify(items=[{"id": listing.id, "match_id": match.id,
+                           "seat_id": ticket.seat_id, "price_kopecks": listing.price_kopecks,
+                           "status": listing.status}
+                          for listing, ticket in eligible_offers(match) if listing.status == "published"])
