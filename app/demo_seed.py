@@ -89,6 +89,24 @@ def seed_demo():
                 db.session.add(Order(listing_id=listing.id, buyer_id=user.id, amount_kopecks=150000,
                                      status="completed", provider_transfer_id="DEMO-TRANSFER-001",
                                      idempotency_key="DEMO-ORDER-001"))
+    # Only publish fictional offers for the designated demo event.
+    future = db.session.scalar(select(Match).where(Match.club_id == club.id,
+        Match.provider_event_id == "DEMO-FUTURE-001"))
+    if club.ticket_provider == "mock" and future.status == "scheduled":
+        for demo_ticket, price in ((ticket, 150000), (seller_ticket, 140000)):
+            if demo_ticket.verification_status != "verified":
+                continue
+            offer = db.session.scalar(select(Listing).where(
+                Listing.match_id == future.id, Listing.season_ticket_id == demo_ticket.id))
+            if offer is None:
+                db.session.add(Listing(match_id=future.id, season_ticket_id=demo_ticket.id,
+                    price_kopecks=price, status="published"))
+            elif offer.status == "draft":
+                offer.status = "published"
+        for number in ("14", "15"):
+            if db.session.scalar(select(Seat).where(Seat.venue_id == venue.id,
+                    Seat.sector == "A", Seat.row == "1", Seat.number == number)) is None:
+                db.session.add(Seat(venue_id=venue.id, sector="A", row="1", number=number))
     db.session.commit()
     click.echo("Demo data ready: phone +79990000001; password from DEMO_USER_PASSWORD")
 
