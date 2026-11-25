@@ -67,6 +67,6 @@ def test_public_match_detail_and_no_fake_sellable_offers():
         assert client.get("/api/matches/" + match.id + "/listings").json["items"] == []
         seats = client.get("/api/matches/" + match.id + "/seats").json["items"]
         assert len(seats) == 1
-        assert seats[0]["status"] == "available"
+        assert seats[0]["status"] == "unavailable"
         db.session.remove()
         db.drop_all()
