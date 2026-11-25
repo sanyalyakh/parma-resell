@@ -42,3 +42,40 @@ def test_demo_seed_requires_opt_in(monkeypatch):
     monkeypatch.setenv("DEMO_USER_PASSWORD", "test-demo-password")
     app = create_app(TestConfig)
     assert app.test_cli_runner().invoke(args=["seed-demo"]).exit_code != 0
+
+
+def test_demo_purchase_flow(monkeypatch):
+    monkeypatch.setenv("ALLOW_DEMO_SEED", "1")
+    monkeypatch.setenv("DEMO_USER_PASSWORD", "test-demo-password")
+    app = create_app(TestConfig)
+    app.config["APP_ENV"] = "development"
+    with app.app_context():
+        db.create_all()
+        assert app.test_cli_runner().invoke(args=["seed-demo"]).exit_code == 0
+        client = app.test_client()
+        login = client.post("/api/auth/login", json={"phone": "+79990000001", "password": "test-demo-password"})
+        headers = {"Authorization": "Bearer " + login.json["access_token"]}
+        match = client.get("/api/matches").json["items"][0]
+        url = "/api/matches/" + match["id"] + "/seats"
+        seats = {s["number"]: s for s in client.get(url).json["items"]}
+        assert seats["12"]["status"] == seats["13"]["status"] == "available"
+        assert seats["14"]["status"] == seats["15"]["status"] == "unavailable"
+        assert seats["13"]["price_kopecks"] == 140000
+        assert len(client.get("/api/matches/" + match["id"] + "/listings").json["items"]) == 2
+        own = "/api/listings/" + seats["12"]["listing_id"] + "/reserve"
+        assert client.post(own, headers=headers).status_code == 409
+        reserve = "/api/listings/" + seats["13"]["listing_id"] + "/reserve"
+        response = client.post(reserve, headers=headers)
+        assert response.status_code == 201
+        order_id = response.json["order"]["id"]
+        assert client.post(reserve, headers=headers).status_code == 409
+        assert next(s for s in client.get(url).json["items"] if s["number"] == "13")["status"] == "reserved"
+        confirm = "/api/orders/" + order_id + "/demo-confirm"
+        assert client.post(confirm, headers=headers).status_code == 200
+        assert client.post(confirm, headers=headers).status_code == 200
+        assert next(s for s in client.get(url).json["items"] if s["number"] == "13")["status"] == "sold"
+        assert any(o["id"] == order_id and o["status"] == "completed" for o in client.get("/api/my/orders", headers=headers).json["items"])
+        assert app.test_cli_runner().invoke(args=["seed-demo"]).exit_code == 0
+        assert next(s for s in client.get(url).json["items"] if s["number"] == "13")["status"] == "sold"
+        db.session.remove()
+        db.drop_all()
