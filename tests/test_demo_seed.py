@@ -24,7 +24,7 @@ def test_demo_seed_idempotent_and_isolated(monkeypatch):
         assert db.session.query(Club).filter_by(slug="parma-demo").count() == 1
         assert db.session.query(Match).count() == 2
         assert db.session.query(SeasonTicket).count() == 2
-        assert db.session.query(Listing).count() == 2
+        assert db.session.query(Listing).count() == 3
         assert db.session.query(Order).count() == 1
         buyer = db.session.query(User).filter_by(phone="+79990000001").one()
         assert db.session.query(SeasonTicket).filter_by(holder_id=buyer.id).count() == 1
