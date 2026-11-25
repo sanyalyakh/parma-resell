@@ -64,3 +64,16 @@ def test_match_card_contract_and_pagination(client):
     assert match["club_id"] == match["home_club"]["id"]
     assert match["venue_id"] == match["arena"]["id"]
     assert client.get("/api/matches?limit=1&offset=1").get_json()["items"] == []
+
+
+def test_unpublished_inventory_is_unavailable(client):
+    match = client.get("/api/matches").json["items"][0]
+    from app.models import Seat
+    db.session.add(Seat(venue_id=match["venue_id"], sector="A", row="1", number="12"))
+    db.session.commit()
+    seats = client.get(f"/api/matches/{match['id']}/seats").json["items"]
+    assert len(seats) == 1
+    assert seats[0]["status"] == "unavailable"
+    assert seats[0]["listing_id"] is None
+    assert seats[0]["price_kopecks"] is None
+    assert client.get(f"/api/matches/{match['id']}/listings").json["items"] == []
