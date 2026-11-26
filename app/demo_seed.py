@@ -27,6 +27,8 @@ def seed_demo():
         club = Club(name="PARMA (DEMO)", slug="parma-demo", ticket_provider="mock")
         db.session.add(club)
         db.session.flush()
+    if club.ticket_provider != "mock":
+        raise click.ClickException("Refusing to seed a non-mock club")
     venue = db.session.scalar(select(Venue).where(Venue.club_id == club.id, Venue.name == "Demo arena"))
     if venue is None:
         venue = Venue(club_id=club.id, name="Demo arena")
@@ -55,6 +57,8 @@ def seed_demo():
         seller = User(phone="+79990000002", password_hash=generate_password_hash(password), role="holder")
         db.session.add(seller)
         db.session.flush()
+    elif seller.role != "holder":
+        raise click.ClickException("Demo seller phone belongs to another account")
     seller_seat = db.session.scalar(select(Seat).where(Seat.venue_id == venue.id, Seat.sector == "A", Seat.row == "1", Seat.number == "13"))
     if seller_seat is None:
         seller_seat = Seat(venue_id=venue.id, sector="A", row="1", number="13")
@@ -89,6 +93,24 @@ def seed_demo():
                 db.session.add(Order(listing_id=listing.id, buyer_id=user.id, amount_kopecks=150000,
                                      status="completed", provider_transfer_id="DEMO-TRANSFER-001",
                                      idempotency_key="DEMO-ORDER-001"))
+    # Only publish fictional offers for the designated demo event.
+    future = db.session.scalar(select(Match).where(Match.club_id == club.id,
+        Match.provider_event_id == "DEMO-FUTURE-001"))
+    if club.ticket_provider == "mock" and future.status == "scheduled":
+        for demo_ticket, price in ((ticket, 150000), (seller_ticket, 140000)):
+            if demo_ticket.verification_status != "verified":
+                continue
+            offer = db.session.scalar(select(Listing).where(
+                Listing.match_id == future.id, Listing.season_ticket_id == demo_ticket.id))
+            if offer is None:
+                db.session.add(Listing(match_id=future.id, season_ticket_id=demo_ticket.id,
+                    price_kopecks=price, status="published"))
+            elif offer.status == "draft":
+                offer.status = "published"
+        for number in ("14", "15"):
+            if db.session.scalar(select(Seat).where(Seat.venue_id == venue.id,
+                    Seat.sector == "A", Seat.row == "1", Seat.number == number)) is None:
+                db.session.add(Seat(venue_id=venue.id, sector="A", row="1", number=number))
     db.session.commit()
     click.echo("Demo data ready: phone +79990000001; password from DEMO_USER_PASSWORD")
 
