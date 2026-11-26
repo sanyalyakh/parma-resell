@@ -63,15 +63,33 @@ export default function RegisterPage() {
       setLoading(true);
 
       try {
-        console.log("Регистрация:", {
-          first_name: firstName,
-          last_name: lastName,
-          email: email.trim() || null,
-          phone,
-          password,
+        const response = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            email: email.trim() || null,
+            phone: "+7" + phone.replace(/\D/g, ""),
+            password,
+          }),
         });
-      } catch {
-        setError("Не удалось выполнить регистрацию. Попробуй ещё раз.");
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Не удалось зарегистрироваться");
+        }
+
+        window.location.href = "/login";
+      } catch (error) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Не удалось выполнить регистрацию. Попробуй ещё раз."
+        );
       } finally {
         setLoading(false);
       }

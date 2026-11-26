@@ -2,8 +2,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Header from "@/app/components/Header";
+import { useRouter } from "next/navigation";
 
 function formatPhone(value: string) {
   const digits = value
@@ -38,6 +39,7 @@ function formatPhone(value: string) {
 }
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
 
   const [userData, setUserData] = useState({
@@ -48,6 +50,62 @@ export default function ProfilePage() {
   });
 
   const [savedUserData, setSavedUserData] = useState(userData);
+
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        const response = await fetch("/api/auth/me");
+
+        if (response.status === 401) {
+          router.replace("/login");
+          return;
+        }
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Не удалось загрузить профиль");
+        }
+
+        if (!response.ok) {
+          throw new Error(data.message || "Не удалось загрузить профиль");
+        }
+
+        const profile = {
+          firstName: data.user.first_name || "",
+          lastName: data.user.last_name || "",
+          phone: formatPhone(data.user.phone || ""),
+          email: data.user.email || "",
+        };
+
+
+        setUserData(profile);
+        setSavedUserData(profile);
+      } catch (error) {
+        console.error("Ошибка загрузки профиля:", error);
+      }
+    }
+
+    loadProfile();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("Не удалось выйти из аккаунта");
+      }
+
+      router.push("/login");
+      router.refresh();
+    } catch (error) {
+      console.error("Ошибка выхода:", error);
+    }
+  };
+
 
   return (
     <main className="min-h-screen bg-[#F3F6FA]">
@@ -274,6 +332,14 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-8 mr-6 rounded-xl bg-[#F28C28] px-5 py-3 text-sm font-bold text-white transition hover:bg-orange-600"
+          >
+            Выйти из аккаунта
+          </button>
 
           <Link
             href="/"

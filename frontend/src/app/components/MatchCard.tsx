@@ -28,8 +28,8 @@ export default function MatchCard({ match }: MatchCardProps) {
           {statusLabels[match.status]}
         </span>
 
-        <span className="text-xs text-gray-400">
-          {match.competition}
+        <span className="text-xs font-bold text-[#0057A8]">
+          PARMA
         </span>
       </div>
 
@@ -39,7 +39,7 @@ export default function MatchCard({ match }: MatchCardProps) {
 
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-xl font-black">
-          {match.home_club.name}
+          ПАРМА
         </h3>
 
         <span className="text-lg font-bold text-[#F28C28]">
@@ -47,14 +47,14 @@ export default function MatchCard({ match }: MatchCardProps) {
         </span>
 
         <h3 className="text-right text-xl font-black">
-          {match.away_club.name}
+          {match.opponent}
         </h3>
       </div>
 
       <div className="my-6 border-t border-gray-100" />
 
       <p className="mb-5 text-sm text-gray-500">
-        {match.arena.name}, {match.arena.city}
+        Домашний матч БК «ПАРМА»
       </p>
 
       <a

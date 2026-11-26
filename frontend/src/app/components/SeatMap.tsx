@@ -11,14 +11,14 @@ type SeatMapProps = {
     }[];
   };
   offers: {
-    id: number;
+    id: string;
     sector: string;
     row: number;
     seat: number;
     price: number;
   }[];
   seats: {
-    id: number;
+    id: string;
     sector: string;
     row: number;
     number: number;
@@ -73,8 +73,9 @@ export default function SeatMap({
     }
 
     switch (status) {
+      case "available":
       case "active":
-        return "border-[#0057A8] bg-[#0057A8] text-white hover:bg-[#004580]";
+        return "border-gray-200 bg-white text-[#0057A8] hover:border-[#0057A8] cursor-pointer";
       case "reserved":
         return "border-[#F28C28] bg-[#F28C28] text-white cursor-not-allowed";
       case "sold":
@@ -284,7 +285,7 @@ export default function SeatMap({
       {/* Выбор места */}
       {seatsInRow.map((seat) => {
         const isSelected = selectedSeat === seat.number;
-        const isAvailable = seat.status === "active";
+        const isAvailable = seat.status === "available" || seat.status === "active";
 
         return (
           <button

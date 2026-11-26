@@ -3,19 +3,20 @@ import { notFound } from "next/navigation";
 import { arenaLayouts } from "@/app/data/arenaLayouts";
 import MatchContent from "@/app/components/MatchContent";
 import type { Match } from "@/app/data/matches";
+
 type ListingsResponse = {
   items: {
-    id: number;
+    id: string;
     sector: string;
     row: string | number;
-    seat: string | number;
-    price: string | number;
+    number: string | number;
+    price_kopecks: string | number;
   }[];
 };
 
 type SeatsResponse = {
   items: {
-    id: number;
+    id: string;
     sector: string;
     row: string | number;
     number: string | number;
@@ -72,15 +73,18 @@ export default async function MatchPage({
     throw new Error("Не удалось загрузить места и предложения");
   }
 
-  const listingsData: ListingsResponse = await listingsResponse.json();
-  const seatsData: SeatsResponse = await seatsResponse.json();
+  const listingsData: ListingsResponse =
+    await listingsResponse.json();
+
+  const seatsData: SeatsResponse =
+    await seatsResponse.json();
 
   const matchOffers = listingsData.items.map((item) => ({
     id: item.id,
     sector: item.sector,
     row: Number(item.row),
-    seat: Number(item.seat),
-    price: Number(item.price),
+    seat: Number(item.number),
+    price: Number(item.price_kopecks) / 100,
   }));
 
   const matchSeats = seatsData.items.map((item) => ({
@@ -91,10 +95,7 @@ export default async function MatchPage({
     status: item.status,
   }));
 
-  const arena =
-    arenaLayouts.find(
-      (layout) => layout.name === match.arena.name
-    ) ?? arenaLayouts[0];
+  const arena = arenaLayouts[0];
 
   const formattedDate = new Intl.DateTimeFormat("ru-RU", {
     day: "numeric",
@@ -115,17 +116,11 @@ export default async function MatchPage({
         </p>
 
         <h1 className="text-3xl font-black">
-          {match.home_club.name} — {match.away_club.name}
+          ПАРМА — {match.opponent}
         </h1>
 
         <p className="mt-4 text-gray-500">
-          {match.competition}
-        </p>
-
-        <p className="mt-2 text-sm font-bold text-[#0057A8]">
-          {match.match_type === "home"
-            ? "Домашний матч"
-            : "Выездной матч"}
+          Домашний матч БК «ПАРМА»
         </p>
 
         <div className="mt-6 flex flex-wrap gap-4">
@@ -142,7 +137,7 @@ export default async function MatchPage({
           <div className="rounded-xl bg-gray-50 px-5 py-4">
             <p className="text-sm text-gray-500">Место проведения</p>
             <p className="mt-1 font-bold">
-              {match.arena.name}, {match.arena.city}
+              Домашняя арена БК «ПАРМА»
             </p>
           </div>
         </div>

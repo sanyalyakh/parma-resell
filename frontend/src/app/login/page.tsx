@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 import Link from "next/link";
 
 import Header from "@/app/components/Header";
 
+import { apiRequest } from "@/lib/api";
+
 export default function LoginPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
 
   const [phone, setPhone] = useState("");
@@ -19,8 +23,23 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // Здесь позже добавим запрос к API
-      console.log("Авторизация:", { phone, password });
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone: "+7" + phone.replace(/\D/g, ""),
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Ошибка входа");
+      }
+      router.push("/profile");
     } catch {
       setError("Не удалось выполнить вход. Попробуй ещё раз.");
     } finally {
