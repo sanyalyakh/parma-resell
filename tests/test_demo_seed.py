@@ -63,7 +63,17 @@ def test_demo_catalog_available_seats(monkeypatch):
         for number in ("14", "15"):
             assert seats[number]["status"] == "unavailable"
             assert seats[number]["listing_id"] is None
-        assert len(client.get(base + "/listings").json["items"]) == 2
+        offers = client.get(base + "/listings").json["items"]
+        assert len(offers) == 2
+        by_seat = {offer["seat_id"]: offer for offer in offers}
+        for seat in seats.values():
+            if seat["status"] == "available":
+                offer = by_seat[seat["id"]]
+                assert seat["listing_id"] == offer["id"]
+                assert seat["price_kopecks"] == offer["price_kopecks"]
+            else:
+                assert seat["listing_id"] is None
+                assert seat["price_kopecks"] is None
         monkeypatch.delenv("ALLOW_DEMO_SEED")
         assert client.get(base + "/listings").json["items"] == []
         db.session.remove()
