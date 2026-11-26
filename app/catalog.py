@@ -110,11 +110,12 @@ def match_seats(match_id):
         status = ("available" if listing.status == "published" else listing.status) if listing else "unavailable"
         if status == "available" and match.status != "scheduled":
             status = "unavailable"
+        is_available = listing is not None and status == "available"
         items.append({
             "id": seat.id, "venue_id": seat.venue_id,
             "sector": seat.sector, "row": seat.row, "number": seat.number,
             "status": status,
-            "listing_id": listing.id if status == "published" else None,
-            "price_kopecks": listing.price_kopecks if status == "published" else None,
+            "listing_id": listing.id if is_available else None,
+            "price_kopecks": listing.price_kopecks if is_available else None,
         })
     return jsonify(items=items)
