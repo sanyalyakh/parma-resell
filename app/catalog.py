@@ -1,5 +1,7 @@
 """Public read-only catalog endpoints."""
-from flask import Blueprint, jsonify, request
+from datetime import datetime, timezone
+from flask import Blueprint, jsonify, request, current_app
+import os
 from sqlalchemy import select
 
 from app.extensions import db
@@ -50,6 +52,16 @@ def match_detail(match_id):
 
 
 def public_match_listings(match):
+    club = db.session.get(Club, match.club_id)
+    starts = match.starts_at
+    if starts.tzinfo is None:
+        starts = starts.replace(tzinfo=timezone.utc)
+    if (current_app.config.get("APP_ENV") == "production"
+            or os.getenv("ALLOW_DEMO_SEED") != "1"
+            or not club or club.slug != "parma-demo" or club.ticket_provider != "mock"
+            or match.provider_event_id != "DEMO-FUTURE-001"
+            or match.status != "scheduled" or starts <= datetime.now(timezone.utc)):
+        return []
     return db.session.execute(
         select(Listing, Seat)
         .join(SeasonTicket, Listing.season_ticket_id == SeasonTicket.id)
@@ -58,6 +70,8 @@ def public_match_listings(match):
                SeasonTicket.club_id == match.club_id,
                Seat.venue_id == match.venue_id,
                SeasonTicket.verification_status == "verified",
+               SeasonTicket.season == "2026/27",
+               SeasonTicket.provider_ticket_id.in_(("DEMO-TICKET-001", "DEMO-TICKET-002")),
                Listing.status.in_(("published", "reserved", "sold")))
         .order_by(Listing.id)
     ).all()
@@ -93,8 +107,8 @@ def match_seats(match_id):
     items = []
     for seat in seats:
         listing = by_seat.get(seat.id)
-        status = listing.status if listing else "unavailable"
-        if status == "published" and match.status != "scheduled":
+        status = ("available" if listing.status == "published" else listing.status) if listing else "unavailable"
+        if status == "available" and match.status != "scheduled":
             status = "unavailable"
         items.append({
             "id": seat.id, "venue_id": seat.venue_id,
