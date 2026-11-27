@@ -5,13 +5,7 @@ import { arenaLayouts } from "@/app/data/arenaLayouts";
 import MatchContent from "@/app/components/MatchContent";
 import type { Match } from "@/app/data/matches";
 type ListingsResponse = {
-  items: {
-    id: string;
-    sector: string;
-    row: string | number;
-    seat: string | number;
-    price: string | number;
-  }[];
+  items: { id: string; seat_id: string; price_kopecks: number; status: string }[];
 };
 
 type SeatsResponse = {
@@ -20,7 +14,9 @@ type SeatsResponse = {
     sector: string;
     row: string | number;
     number: string | number;
-    status: "available" | "active" | "reserved" | "sold";
+    status: "available" | "unavailable" | "reserved" | "sold";
+    listing_id: string | null;
+    price_kopecks: number | null;
   }[];
 };
 
@@ -76,20 +72,24 @@ export default async function MatchPage({
   const listingsData: ListingsResponse = await listingsResponse.json();
   const seatsData: SeatsResponse = await seatsResponse.json();
 
-  const matchOffers = listingsData.items.map((item) => ({
-    id: item.id,
-    sector: item.sector,
-    row: Number(item.row),
-    seat: Number(item.seat),
-    price: Number(item.price),
-  }));
-
+  const offersById = new Map(listingsData.items.map((item) => [item.id, item]));
+  const matchOffers = seatsData.items.flatMap((seat) => {
+    const offer = seat.listing_id ? offersById.get(seat.listing_id) : undefined;
+    if (seat.status !== "available" || !offer || offer.status !== "published" ||
+        offer.seat_id !== seat.id || seat.price_kopecks === null ||
+        offer.price_kopecks !== seat.price_kopecks) return [];
+    return [{ id: offer.id, sector: seat.sector, row: Number(seat.row),
+      seat: Number(seat.number), price: offer.price_kopecks / 100 }];
+  });
+  const activeIds = new Set(matchOffers.map((offer) => offer.id));
   const matchSeats = seatsData.items.map((item) => ({
     id: item.id,
     sector: item.sector,
     row: Number(item.row),
     number: Number(item.number),
-    status: item.status,
+    status: item.status === "available" && item.listing_id && activeIds.has(item.listing_id)
+      ? "active" as const
+      : item.status === "reserved" || item.status === "sold" ? item.status : "available" as const,
   }));
 
   const arena =
