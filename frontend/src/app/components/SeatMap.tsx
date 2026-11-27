@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 type SeatMapProps = {
   layout: {
     id: string;
@@ -33,6 +35,7 @@ type SeatMapProps = {
 };
 
 export default function SeatMap({
+
   layout,
   offers,
   seats,
@@ -43,6 +46,8 @@ export default function SeatMap({
   onRowChange,
   onSeatChange,
 }: SeatMapProps) {
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [paymentNotice, setPaymentNotice] = useState(false);
   const normalizeSector = (sector: string) =>
     sector.replace(/^Сектор\s+/i, "").trim();
 
@@ -54,6 +59,13 @@ export default function SeatMap({
   const availableOffers = offers.filter(
     (offer) =>
       normalizeSector(offer.sector) === normalizeSector(selectedSector)
+  );
+
+  const selectedOffer = offers.find(
+    (offer) =>
+      normalizeSector(offer.sector) === normalizeSector(selectedSector) &&
+      offer.row === selectedRow &&
+      offer.seat === selectedSeat
   );
 
   const rows = [
@@ -243,7 +255,8 @@ export default function SeatMap({
                 <button
                   type="button"
                   onClick={() => {
-                    alert("Переход к покупке будет подключён после интеграции с бэкендом.");
+                    setPaymentNotice(false);
+                    setIsPurchaseModalOpen(true);
                   }}
                   className="w-full rounded-xl bg-[#F28C28] px-6 py-3 font-bold text-white transition hover:bg-[#e47b19] sm:w-auto"
                 >
@@ -311,6 +324,119 @@ export default function SeatMap({
           </button>
         );
       })}
+
+      {/* Модальное окно подтверждения заказа */}
+      {isPurchaseModalOpen && selectedOffer && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]"
+          style={{ animation: "purchaseOverlayIn 180ms ease-out" }}
+          onClick={() => setIsPurchaseModalOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="purchase-modal-title"
+            className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl sm:p-8"
+            style={{
+              animation:
+                "purchaseModalIn 220ms cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {/* Кнопка закрытия */}
+            <button
+              type="button"
+              onClick={() => setIsPurchaseModalOpen(false)}
+              aria-label="Закрыть окно"
+              className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-2xl text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+            >
+              ×
+            </button>
+
+            <p className="text-sm font-bold uppercase tracking-widest text-[#F28C28]">
+              PARMA RESELL
+            </p>
+
+            <h2
+              id="purchase-modal-title"
+              className="mt-2 text-2xl font-black text-gray-900"
+            >
+              Подтверждение заказа
+            </h2>
+
+            <p className="mt-2 text-sm text-gray-500">
+              Проверьте выбранное место и сумму заказа.
+            </p>
+
+            {/* Информация о заказе */}
+            <div className="mt-6 rounded-xl bg-[#F3F6FA] p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                Выбранное место
+              </p>
+
+              <div className="mt-4 space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Сектор</span>
+                  <span className="font-bold text-gray-900">
+                    {selectedOffer.sector}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Ряд</span>
+                  <span className="font-bold text-gray-900">
+                    {selectedOffer.row}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Место</span>
+                  <span className="font-bold text-gray-900">
+                    {selectedOffer.seat}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-5 border-t border-gray-200 pt-4">
+                <p className="text-sm font-medium text-gray-500">
+                  Сумма заказа
+                </p>
+
+                <p className="mt-1 text-3xl font-black text-[#0057A8]">
+                  {selectedOffer.price.toLocaleString("ru-RU")} ₽
+                </p>
+              </div>
+            </div>
+
+            {/* Кнопка оплаты */}
+            <button
+              type="button"
+              onClick={() => setPaymentNotice(true)}
+              className="mt-6 w-full rounded-xl bg-[#F28C28] px-6 py-4 font-bold text-white transition hover:bg-[#e47b19] active:scale-[0.98]"
+            >
+              Оплатить
+            </button>
+
+            {paymentNotice && (
+              <p
+                role="status"
+                className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-[#0057A8]"
+              >
+                Переход к оплате будет подключён после определения схемы
+                интеграции с билетным оператором.
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setIsPurchaseModalOpen(false)}
+              className="mt-3 w-full rounded-xl px-6 py-3 text-sm font-bold text-gray-500 transition hover:bg-gray-100"
+            >
+              Вернуться к выбору места
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
