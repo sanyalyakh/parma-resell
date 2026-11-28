@@ -107,6 +107,18 @@ def seed_demo():
             if db.session.scalar(select(Seat).where(Seat.venue_id == venue.id,
                     Seat.sector == "A", Seat.row == "1", Seat.number == number)) is None:
                 db.session.add(Seat(venue_id=venue.id, sector="A", row="1", number=number))
+    # Additional fixtures for seller drafts; never publish offers for these events.
+    for event_id, opponent, days in (
+        ("DEMO-SELLER-001", "Зенит (демо)", 21),
+        ("DEMO-SELLER-002", "Локомотив-Кубань (демо)", 28),
+        ("DEMO-SELLER-003", "УНИКС (демо)", 35),
+    ):
+        event = db.session.scalar(select(Match).where(
+            Match.club_id == club.id, Match.provider_event_id == event_id))
+        if event is None:
+            db.session.add(Match(club_id=club.id, venue_id=venue.id,
+                opponent=opponent, starts_at=now + timedelta(days=days),
+                status="scheduled", provider_event_id=event_id))
     db.session.commit()
     click.echo("Demo data ready: phone +79990000001; password from DEMO_USER_PASSWORD")
 
