@@ -17,14 +17,52 @@ def error(message, status):
 
 
 def ticket_json(t):
+    seat = db.session.get(Seat, t.seat_id)
+    venue = db.session.get(Venue, seat.venue_id)
     return {"id": t.id, "club_id": t.club_id, "seat_id": t.seat_id,
-            "season": t.season, "verification_status": t.verification_status}
+            "season": t.season, "verification_status": t.verification_status,
+            "sector": seat.sector, "row": seat.row, "number": seat.number,
+            "venue_id": venue.id, "venue_name": venue.name}
+
+
+def match_json(match):
+    venue = db.session.get(Venue, match.venue_id)
+    starts = match.starts_at
+    if starts.tzinfo is None:
+        starts = starts.replace(tzinfo=timezone.utc)
+    return {"id": match.id, "club_id": match.club_id, "opponent": match.opponent,
+            "starts_at": starts.isoformat(), "status": match.status,
+            "venue_id": venue.id, "venue_name": venue.name, "match_type": "home"}
 
 
 def listing_json(item):
+    ticket = db.session.get(SeasonTicket, item.season_ticket_id)
+    match = db.session.get(Match, item.match_id)
+    seat = ticket_json(ticket)
+    event = match_json(match)
     return {"id": item.id, "match_id": item.match_id,
             "season_ticket_id": item.season_ticket_id,
-            "price_kopecks": item.price_kopecks, "status": item.status}
+            "price_kopecks": item.price_kopecks, "status": item.status,
+            **{k: seat[k] for k in ("sector", "row", "number", "season")},
+            **{k: event[k] for k in ("opponent", "starts_at", "venue_id", "venue_name")}}
+
+
+@bp.get("/my/tickets/<ticket_id>/eligible-matches")
+@require_auth
+def eligible_matches(ticket_id):
+    ticket = db.session.get(SeasonTicket, ticket_id)
+    if ticket is None or ticket.holder_id != g.current_user.id:
+        return error("ticket_not_found", 404)
+    if ticket.verification_status != "verified":
+        return error("ticket_not_verified", 409)
+    seat = db.session.get(Seat, ticket.seat_id)
+    existing = select(Listing.match_id).where(Listing.season_ticket_id == ticket.id)
+    records = db.session.scalars(select(Match).where(
+        Match.club_id == ticket.club_id, Match.venue_id == seat.venue_id,
+        Match.status == "scheduled", Match.starts_at > datetime.now(timezone.utc),
+        ~Match.id.in_(existing)
+    ).order_by(Match.starts_at, Match.id)).all()
+    return jsonify(items=[match_json(m) for m in records])
 
 
 @bp.get("/my/tickets")
