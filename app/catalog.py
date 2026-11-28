@@ -1,0 +1,96 @@
+"""Public read-only match catalog. Never expose unpublished ticket offers."""
+from datetime import datetime, timezone
+from flask import Blueprint, jsonify, request
+from app.demo_market import demo_enabled, eligible_offers
+from sqlalchemy import func, select
+
+from app.extensions import db
+from app.models import Club, Match, Venue, Seat, Listing, SeasonTicket
+
+bp = Blueprint("catalog", __name__, url_prefix="/api")
+
+
+def serialize_match(match):
+    club = db.session.get(Club, match.club_id)
+    venue = db.session.get(Venue, match.venue_id)
+    return {
+        "id": match.id, "club_id": match.club_id, "venue_id": match.venue_id,
+        "opponent": match.opponent, "venue_name": venue.name, "starts_at": match.starts_at.isoformat(),
+        "status": "finished" if match.status == "completed" else match.status,
+        "home_club": {"id": club.id, "name": club.name},
+        "away_club": {"id": None, "name": match.opponent},
+        "arena": {"id": venue.id, "name": venue.name, "city": "Пермь"},
+        "competition": "Демонстрационный каталог" if club.ticket_provider == "mock" else "Баскетбол",
+        "match_type": "home",
+    }
+
+
+@bp.get("/clubs")
+def clubs():
+    records = db.session.scalars(select(Club).order_by(Club.name, Club.id)).all()
+    return jsonify(items=[{"id": c.id, "name": c.name, "slug": c.slug} for c in records])
+
+
+@bp.get("/matches")
+def matches():
+    venue_id = request.args.get("venue_id")
+    if venue_id is not None and (not venue_id or len(venue_id) > 36):
+        return jsonify(error="invalid_venue_id"), 400
+    club_id = request.args.get("club_id")
+    if club_id is not None and (not club_id or len(club_id) > 36):
+        return jsonify(error="invalid_club_id"), 400
+    try:
+        limit = int(request.args.get("limit", "20"))
+        offset = int(request.args.get("offset", "0"))
+    except ValueError:
+        return jsonify(error="invalid_pagination"), 400
+    if not 1 <= limit <= 100 or offset < 0:
+        return jsonify(error="invalid_pagination"), 400
+    query = select(Match).where(Match.status == "scheduled")
+    if club_id:
+        query = query.where(Match.club_id == club_id)
+    if venue_id:
+        query = query.where(Match.venue_id == venue_id)
+    total = db.session.scalar(select(func.count()).select_from(query.subquery()))
+    records = db.session.scalars(query.order_by(Match.starts_at, Match.id).limit(limit).offset(offset)).all()
+    return jsonify(items=[serialize_match(m) for m in records], limit=limit, offset=offset,
+                   pagination={"page": offset // limit + 1, "per_page": limit,
+                               "pages": (total + limit - 1) // limit, "total": total})
+
+
+@bp.get("/matches/<match_id>")
+def match_detail(match_id):
+    match = db.session.get(Match, match_id)
+    if match is None:
+        return jsonify(error="match_not_found"), 404
+    return jsonify(serialize_match(match))
+
+
+@bp.get("/matches/<match_id>/seats")
+def match_seats(match_id):
+    match = db.session.get(Match, match_id)
+    if match is None:
+        return jsonify(error="match_not_found"), 404
+    seats = db.session.scalars(select(Seat).where(Seat.venue_id == match.venue_id)
+                               .order_by(Seat.sector, Seat.row, Seat.number).limit(10000)).all()
+    offers = {ticket.seat_id: listing for listing, ticket in eligible_offers(match)}
+    items = []
+    for seat in seats:
+        listing = offers.get(seat.id)
+        status = {"published": "available", "reserved": "reserved", "sold": "sold"}.get(listing.status, "unavailable") if listing else "unavailable"
+        items.append({"id": seat.id, "sector": seat.sector, "row": seat.row,
+                      "number": seat.number, "status": status,
+                      "listing_id": listing.id if status == "available" else None,
+                      "price_kopecks": listing.price_kopecks if status == "available" else None})
+    return jsonify(items=items)
+
+
+@bp.get("/matches/<match_id>/listings")
+def match_listings(match_id):
+    match = db.session.get(Match, match_id)
+    if match is None:
+        return jsonify(error="match_not_found"), 404
+    return jsonify(items=[{"id": listing.id, "match_id": match.id,
+                           "seat_id": ticket.seat_id, "price_kopecks": listing.price_kopecks,
+                           "status": listing.status}
+                          for listing, ticket in eligible_offers(match) if listing.status == "published"])
