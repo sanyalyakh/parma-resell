@@ -15,7 +15,7 @@ def serialize_match(match):
     venue = db.session.get(Venue, match.venue_id)
     return {
         "id": match.id, "club_id": match.club_id, "venue_id": match.venue_id,
-        "opponent": match.opponent, "starts_at": match.starts_at.isoformat(),
+        "opponent": match.opponent, "venue_name": venue.name, "starts_at": match.starts_at.isoformat(),
         "status": "finished" if match.status == "completed" else match.status,
         "home_club": {"id": club.id, "name": club.name},
         "away_club": {"id": None, "name": match.opponent},
@@ -33,6 +33,9 @@ def clubs():
 
 @bp.get("/matches")
 def matches():
+    venue_id = request.args.get("venue_id")
+    if venue_id is not None and (not venue_id or len(venue_id) > 36):
+        return jsonify(error="invalid_venue_id"), 400
     club_id = request.args.get("club_id")
     if club_id is not None and (not club_id or len(club_id) > 36):
         return jsonify(error="invalid_club_id"), 400
@@ -46,6 +49,8 @@ def matches():
     query = select(Match).where(Match.status == "scheduled")
     if club_id:
         query = query.where(Match.club_id == club_id)
+    if venue_id:
+        query = query.where(Match.venue_id == venue_id)
     total = db.session.scalar(select(func.count()).select_from(query.subquery()))
     records = db.session.scalars(query.order_by(Match.starts_at, Match.id).limit(limit).offset(offset)).all()
     return jsonify(items=[serialize_match(m) for m in records], limit=limit, offset=offset,
