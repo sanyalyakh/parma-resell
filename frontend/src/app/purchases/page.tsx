@@ -1,13 +1,88 @@
 "use client";
 
-import { useState } from "react";
-
-import Link from "next/link";
-
+import { useEffect, useState } from "react";
 import Header from "@/app/components/Header";
 
+type Purchase = {
+  id: string;
+  status: string;
+  amount_kopecks: number;
+  listing_id: string;
+  match_id: string;
+  opponent: string;
+  starts_at: string;
+};
+
+type OrdersResponse = {
+  items: Purchase[];
+  message?: string;
+};
+
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case "completed":
+      return "Завершён";
+    case "pending":
+      return "Ожидает";
+    case "cancelled":
+      return "Отменён";
+    default:
+      return status;
+  }
+};
+
 export default function PurchasesPage() {
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [statusFilter, setStatusFilter] = useState("Все");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadPurchases() {
+      try {
+        const response = await fetch("/api/my/orders", {
+          cache: "no-store",
+        });
+
+        const data: OrdersResponse = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Не удалось загрузить покупки"
+          );
+        }
+
+        if (isMounted) {
+          setPurchases(data.items || []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setError(
+            error instanceof Error
+              ? error.message
+              : "Произошла ошибка при загрузке"
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadPurchases();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const statusOptions = [
+    "Все",
+    ...Array.from(new Set(purchases.map((purchase) => purchase.status))),
+  ];
 
   const filteredPurchases =
     statusFilter === "Все"
@@ -34,136 +109,155 @@ export default function PurchasesPage() {
             Здесь собраны ваши билеты и история заказов
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            {["Все", "Оплачен", "Ожидает оплаты", "Отменён"].map((status) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`rounded-xl px-5 py-2.5 text-sm font-bold transition ${
-                  statusFilter === status
-                    ? "bg-[#0057A8] text-white"
-                    : "bg-white text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                {status === "Оплачен"
-                  ? "Оплаченные"
-                  : status === "Ожидает оплаты"
-                    ? "Ожидают оплаты"
-                    : status === "Отменён"
-                      ? "Отменённые"
-                      : "Все"}
-              </button>
-            ))}
-          </div>
+          {isLoading && (
+            <p className="mt-10 text-center text-gray-500">
+              Загружаем историю покупок...
+            </p>
+          )}
 
-          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {filteredPurchases.map((purchase) => (
-              <div
-                key={purchase.id}
-                className="rounded-2xl bg-white p-6 shadow-sm"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-bold text-[#0057A8]">
-                    PARMA RESELL
-                  </span>
+          {error && (
+            <div className="mt-8 rounded-xl bg-white p-6 text-center">
+              <p className="font-bold text-red-600">
+                {error}
+              </p>
+              <p className="mt-2 text-sm text-gray-500">
+                Проверьте авторизацию и попробуйте обновить страницу.
+              </p>
+            </div>
+          )}
 
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-bold ${
-                      purchase.status === "Оплачен"
-                        ? "bg-green-100 text-green-700"
-                        : purchase.status === "Ожидает оплаты"
-                          ? "bg-orange-100 text-orange-700"
-                          : "bg-red-100 text-red-600"
+          {!isLoading && !error && (
+            <>
+              <div className="mt-8 flex flex-wrap gap-3">
+                {statusOptions.map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setStatusFilter(status)}
+                    className={`rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                      statusFilter === status
+                        ? "bg-[#0057A8] text-white"
+                        : "bg-white text-gray-600 hover:bg-gray-100"
                     }`}
                   >
-                    {purchase.status}
-                  </span>
-                </div>
-
-                <h2 className="mt-5 text-xl font-black text-gray-900">
-                  БК ПАРМА — {purchase.opponent}
-                </h2>
-
-                <p className="mt-2 text-sm text-gray-500">
-                  {purchase.date} · {purchase.time}
-                </p>
-
-                <div className="mt-5 rounded-xl bg-[#F3F6FA] p-4">
-                  <p className="font-bold text-gray-900">
-                    {purchase.arena}
-                  </p>
-
-                  <p className="mt-2 text-sm text-gray-600">
-                    {purchase.sector}
-                  </p>
-
-                  <p className="mt-1 text-sm text-gray-600">
-                    Ряд {purchase.row} · Место {purchase.seat}
-                  </p>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between">
-                  <span className="text-sm text-gray-500">
-                    Стоимость билета
-                  </span>
-
-                  <span className="text-xl font-black text-[#F28C28]">
-                    {purchase.price.toLocaleString("ru-RU")} ₽
-                  </span>
-                </div>
-
-                {purchase.status === "Оплачен" && (
-                  <Link
-                    href={`/purchases/${purchase.id}`}
-                    className="mt-5 block w-full rounded-xl bg-[#0057A8] px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-[#004680]"
-                  >
-                    Посмотреть билет
-                  </Link>
-                )}
+                    {status === "Все"
+                      ? "Все"
+                      : getStatusLabel(status)}
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
+
+              {purchases.length === 0 ? (
+                <div className="mt-10 rounded-2xl bg-white p-10 text-center shadow-sm">
+                  <h2 className="text-xl font-black text-gray-900">
+                    Пока нет покупок
+                  </h2>
+                  <p className="mt-2 text-gray-500">
+                    Здесь появятся ваши приобретённые билеты.
+                  </p>
+                </div>
+              ) : filteredPurchases.length === 0 ? (
+                <p className="mt-10 rounded-xl bg-white p-8 text-center text-gray-500">
+                  Покупок с таким статусом пока нет.
+                </p>
+              ) : (
+                <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredPurchases.map((purchase) => {
+                    const matchDate = new Date(purchase.starts_at);
+                    const validDate = !Number.isNaN(
+                      matchDate.getTime()
+                    );
+
+                    const formattedDate = validDate
+                      ? new Intl.DateTimeFormat("ru-RU", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        }).format(matchDate)
+                      : "Дата не указана";
+
+                    const formattedTime = validDate
+                      ? new Intl.DateTimeFormat("ru-RU", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }).format(matchDate)
+                      : "";
+
+                    const statusClass =
+                      purchase.status === "completed"
+                        ? "bg-green-100 text-green-700"
+                        : purchase.status === "pending"
+                          ? "bg-orange-100 text-orange-700"
+                          : purchase.status === "cancelled"
+                            ? "bg-red-100 text-red-600"
+                            : "bg-gray-100 text-gray-600";
+
+                    const isDemo = purchase.opponent
+                      .toLowerCase()
+                      .includes("демо");
+
+                    return (
+                      <div
+                        key={purchase.id}
+                        className="rounded-2xl bg-white p-6 shadow-sm"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-sm font-bold text-[#0057A8]">
+                            PARMA RESELL
+                          </span>
+
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold ${statusClass}`}
+                          >
+                            {getStatusLabel(purchase.status)}
+                          </span>
+                        </div>
+
+                        <h2 className="mt-5 text-xl font-black text-gray-900">
+                          БК ПАРМА — {purchase.opponent}
+                        </h2>
+
+                        <p className="mt-2 text-sm text-gray-500">
+                          {formattedDate} · {formattedTime}
+                        </p>
+
+                        <div className="mt-5 rounded-xl bg-[#F3F6FA] p-4">
+                          <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                            Номер заказа
+                          </p>
+
+                          <p className="mt-1 break-all text-sm font-medium text-gray-700">
+                            {purchase.id}
+                          </p>
+                        </div>
+
+                        <div className="mt-5 flex items-center justify-between">
+                          <span className="text-sm text-gray-500">
+                            Стоимость заказа
+                          </span>
+
+                          <span className="text-xl font-black text-[#F28C28]">
+                            {(purchase.amount_kopecks / 100).toLocaleString(
+                              "ru-RU"
+                            )}{" "}
+                            ₽
+                          </span>
+                        </div>
+
+                        {isDemo && (
+                          <p className="mt-4 rounded-lg bg-orange-50 p-3 text-xs leading-relaxed text-orange-800">
+                            Демонстрационная запись. Реальная оплата
+                            и передача права посещения не выполнялись.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </main>
   );
 }
-
-const purchases = [
-  {
-    id: 1,
-    opponent: "Соперник 01",
-    date: "15 декабря 2026",
-    time: "19:00",
-    arena: "УДС «Молот»",
-    sector: "Сектор A",
-    row: 3,
-    seat: 12,
-    price: 1500,
-    status: "Оплачен",
-  },
-  {
-    id: 2,
-    opponent: "Соперник 02",
-    date: "5 января 2027",
-    time: "19:00",
-    arena: "Тестовая арена",
-    sector: "Сектор B",
-    row: 5,
-    seat: 8,
-    price: 1000,
-    status: "Ожидает оплаты",
-  },
-  {
-    id: 3,
-    opponent: "Соперник 03",
-    date: "15 января 2027",
-    time: "19:00",
-    arena: "УДС «Молот»",
-    sector: "Сектор C",
-    row: 2,
-    seat: 15,
-    price: 1700,
-    status: "Отменён",
-  },
-];

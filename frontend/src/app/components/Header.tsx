@@ -1,17 +1,87 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+
+type CurrentUser = {
+  first_name: string | null;
+  last_name: string | null;
+  phone: string;
+  role: string;
+};
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  // Пока false. Позже заменю данное значение на реальное состояние авторизации пользователя
-  const isLoggedIn = false;
+  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
-  // Временное имя для отображения профиля
-  const userName = "Иван";
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadUser() {
+      try {
+        const response = await fetch("/api/auth/me", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          if (isMounted) setUser(null);
+          return;
+        }
+
+        const data = await response.json();
+
+        if (isMounted) {
+          setUser(data.user ?? null);
+        }
+      } catch {
+        if (isMounted) {
+          setUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsAuthLoading(false);
+        }
+      }
+    }
+
+    loadUser();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const isLoggedIn = user !== null;
+
+  const userName =
+    [user?.first_name, user?.last_name]
+      .filter(Boolean)
+      .join(" ") ||
+    user?.phone ||
+    "Профиль";
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("Не удалось выполнить выход");
+      }
+
+      setUser(null);
+      setIsProfileOpen(false);
+      setIsMenuOpen(false);
+
+      window.location.href = "/login";
+    } catch {
+      alert("Не удалось выйти из аккаунта. Попробуйте ещё раз.");
+    }
+  };
 
   const closeMenu = () => {
     setIsMenuOpen(false);
@@ -145,7 +215,7 @@ export default function Header() {
                   <div className="my-2 border-t border-gray-100" />
 
                   <button
-                    onClick={() => setIsProfileOpen(false)}
+                    onClick={handleLogout}
                     className="block w-full px-5 py-3 text-left text-sm font-semibold text-red-500 transition hover:bg-red-50"
                   >
                     Выйти
@@ -259,7 +329,7 @@ export default function Header() {
         <div className="my-7 border-t border-gray-200" />
 
         {/* Личный кабинет */}
-        {isLoggedIn ? (
+        {isAuthLoading ? null : isLoggedIn ? (
           <>
             <div className="mb-6 flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 text-[#0057A8]">
@@ -320,7 +390,7 @@ export default function Header() {
 
             <div className="mt-auto">
               <button
-                onClick={closeMenu}
+                onClick={handleLogout}
                 className="w-full rounded-xl bg-red-50 px-5 py-4 text-sm font-semibold text-red-600 transition hover:bg-red-100"
               >
                 Выйти
