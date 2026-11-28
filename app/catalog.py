@@ -5,7 +5,7 @@ import os
 from sqlalchemy import select
 
 from app.extensions import db
-from app.models import Club, Listing, Match, Seat, SeasonTicket
+from app.models import Club, Listing, Match, Seat, SeasonTicket, Venue
 
 bp = Blueprint("catalog", __name__, url_prefix="/api")
 
@@ -14,7 +14,8 @@ def serialize_match(m):
     return {
         "id": m.id, "club_id": m.club_id, "venue_id": m.venue_id,
         "opponent": m.opponent, "starts_at": m.starts_at.isoformat(),
-        "status": m.status,
+        "status": m.status, "venue_name": db.session.get(Venue, m.venue_id).name,
+        "match_type": "home",
     }
 
 
@@ -26,6 +27,9 @@ def clubs():
 
 @bp.get("/matches")
 def matches():
+    venue_id = request.args.get("venue_id")
+    if venue_id is not None and (not venue_id or len(venue_id) > 36):
+        return jsonify(error="invalid_venue_id"), 400
     club_id = request.args.get("club_id")
     if club_id is not None and (not club_id or len(club_id) > 36):
         return jsonify(error="invalid_club_id"), 400
@@ -39,6 +43,8 @@ def matches():
     query = select(Match).where(Match.status == "scheduled")
     if club_id:
         query = query.where(Match.club_id == club_id)
+    if venue_id:
+        query = query.where(Match.venue_id == venue_id)
     records = db.session.scalars(query.order_by(Match.starts_at, Match.id).limit(limit).offset(offset)).all()
     return jsonify(items=[serialize_match(m) for m in records], limit=limit, offset=offset)
 
