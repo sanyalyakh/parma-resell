@@ -22,7 +22,7 @@ def test_demo_seed_idempotent_and_isolated(monkeypatch):
         assert runner.invoke(args=["seed-demo"]).exit_code == 0
         assert runner.invoke(args=["seed-demo"]).exit_code == 0
         assert db.session.query(Club).filter_by(slug="parma-demo").count() == 1
-        assert db.session.query(Match).count() == 2
+        assert db.session.query(Match).count() == 5
         assert db.session.query(SeasonTicket).count() == 2
         assert db.session.query(Listing).count() == 3
         assert db.session.query(Order).count() == 1
@@ -76,5 +76,49 @@ def test_demo_catalog_available_seats(monkeypatch):
                 assert seat["price_kopecks"] is None
         monkeypatch.delenv("ALLOW_DEMO_SEED")
         assert client.get(base + "/listings").json["items"] == []
+        db.session.remove()
+        db.drop_all()
+
+
+def test_seller_draft_flow(monkeypatch):
+    monkeypatch.setenv("ALLOW_DEMO_SEED", "1")
+    monkeypatch.setenv("DEMO_USER_PASSWORD", "test-demo-password")
+    app = create_app(TestConfig)
+    app.config["APP_ENV"] = "development"
+    with app.app_context():
+        db.create_all()
+        runner = app.test_cli_runner()
+        assert runner.invoke(args=["seed-demo"]).exit_code == 0
+        client = app.test_client()
+        def headers(phone):
+            response = client.post("/api/auth/login", json={
+                "phone": phone, "password": "test-demo-password"})
+            assert response.status_code == 200
+            return {"Authorization": "Bearer " + response.json["access_token"]}
+        auth = headers("+79990000001")
+        other = headers("+79990000002")
+        ticket = client.get("/api/my/tickets", headers=auth).json["items"][0]
+        assert (ticket["sector"], ticket["row"], ticket["number"]) == ("A", "1", "12")
+        assert ticket["venue_name"] == "Demo arena"
+        url = "/api/my/tickets/" + ticket["id"] + "/eligible-matches"
+        assert client.get(url, headers=other).status_code == 404
+        matches = client.get(url, headers=auth).json["items"]
+        assert len(matches) == 3
+        match = matches[0]
+        payload = {"season_ticket_id": ticket["id"], "match_id": match["id"],
+                   "price_kopecks": 123400, "status": "published"}
+        assert client.post("/api/my/listings", json=payload, headers=other).status_code == 404
+        response = client.post("/api/my/listings", json=payload, headers=auth)
+        assert response.status_code == 201
+        listing = response.json["listing"]
+        assert listing["status"] == "draft"
+        assert listing["number"] == "12"
+        assert listing["opponent"] == match["opponent"]
+        assert client.post("/api/my/listings", json=payload, headers=auth).status_code == 409
+        assert len(client.get(url, headers=auth).json["items"]) == 2
+        assert runner.invoke(args=["seed-demo"]).exit_code == 0
+        assert client.get("/api/matches/" + match["id"] + "/listings").json["items"] == []
+        assert any(x["id"] == listing["id"] and x["status"] == "draft"
+                   for x in client.get("/api/my/listings", headers=auth).json["items"])
         db.session.remove()
         db.drop_all()
